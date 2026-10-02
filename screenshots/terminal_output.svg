@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <style>
+      .bg { fill: #0d1117; }
+      .window { fill: #1f2328; }
+      .titlebar { fill: #2d333b; }
+      .text { font-family: 'Consolas', 'Courier New', monospace; fill: #c9d1d9; font-size: 20px; }
+      .heading { font-family: 'Consolas', 'Courier New', monospace; fill: #ffffff; font-size: 30px; font-weight: bold; }
+      .dot { fill: #f85149; }
+      .dot2 { fill: #fbbf24; }
+      .dot3 { fill: #2ea043; }
+      .line { stroke: #4b5563; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1200" height="760" />
+
+  <rect class="window" x="70" y="55" width="1060" height="650" rx="12" />
+  <rect class="titlebar" x="70" y="55" width="1060" height="42" rx="12"/>
+
+  <circle class="dot" cx="110" cy="76" r="7"/>
+  <circle class="dot2" cx="140" cy="76" r="7"/>
+  <circle class="dot3" cx="170" cy="76" r="7"/>
+
+  <text x="250" y="88" class="text" fill="#d0d7de">Windows PowerShell</text>
+
+  <line class="line" x1="70" y1="97" x2="1130" y2="97" />
+
+  <text x="130" y="170" class="heading">DIGITAL EXAMINATION RESULTS MANAGEMENT SYSTEM</text>
+  <text x="130" y="214" class="text">Enter Student ID: ST001</text>
+  <text x="130" y="246" class="text">Enter Student Name: Mohamed</text>
+  <text x="130" y="278" class="text">Enter Age: 20</text>
+  <text x="130" y="332" class="text">Enter Subject/Module: Mathematics</text>
+  <text x="130" y="364" class="text">Enter Score: 72</text>
+  <text x="130" y="396" class="text">Calculated Grade: A</text>
+  <text x="130" y="428" class="text">Do you want to enter another subject/module? (yes/no): yes</text>
+  <text x="130" y="482" class="text">Enter Subject/Module: Physics</text>
+  <text x="130" y="514" class="text">Enter Score: 65</text>
+  <text x="130" y="546" class="text">Calculated Grade: B</text>
+  <text x="130" y="578" class="text">Do you want to enter another subject/module? (yes/no): no</text>
+  <text x="130" y="620" class="text">Total Score: 137.0</text>
+  <text x="130" y="652" class="text">Number of Subjects: 2</text>
+  <text x="130" y="684" class="text">Average Score: 68.50</text>
+  <text x="130" y="716" class="text">Overall Grade: B</text>
+</svg>
