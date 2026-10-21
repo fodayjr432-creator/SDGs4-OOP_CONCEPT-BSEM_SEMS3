@@ -28,6 +28,18 @@ This project uses the Ministry of Basic and Senior Secondary Education (MBSSE) i
 ## SDG 4 Alignment
 This project is primarily related to SDG 4 – Quality Education. It does not claim to implement SDG 4 directly, but it supports an education-sector digital use case within the broader goal of improving education systems and learning quality.
 
+### Programme
+The Programme class stores a programme code, name, and associated Module objects. Modules are added per programme, avoiding duplicate module assignments.
+
+### Module
+The Module class stores a unique code, name, level, semester, and description.
+
+### Examination
+The Examination class supports MCQ, true/false, and short-answer questions. Objective scores are calculated using trusted backend logic.
+
+### RecordStore
+The RecordStore class persists student and result records to a JSON file (`records.json`), supporting save, load, append, find, and delete operations.
+
 ## OOP Concepts Used
 - Classes
 - Objects
@@ -37,6 +49,8 @@ This project is primarily related to SDG 4 – Quality Education. It does not cl
 - Class method
 - Static method
 - Object interaction
+- Composition (Programme contains Modules, Student references Programme)
+- Encapsulation (validation methods)
 
 ## Classes and Responsibilities
 ### Student
@@ -103,8 +117,8 @@ The tests use Python's standard library and do not require third-party packages.
 
 ## Current Scope and Limitations
 - This is a single-user command-line learning prototype. It has no login, account roles, or authorization system.
-- Student and result data is held in memory only and is lost when the program exits. There is no database, migration, or environment configuration.
-- The current workflow creates and displays results; it does not provide persistent listing, search, update, or delete operations.
+- Student and result data is now persisted to `records.json` via the `RecordStore` class.
+- The current workflow creates, displays, and deletes records; it supports programme-specific modules.
 - Do not use real student information or treat this prototype as a production records system.
 
 ## Example Output
@@ -178,6 +192,9 @@ Digital-Examination-Results-System/
 ├── main.py
 ├── student.py
 ├── exam_result.py
+├── programme.py
+├── examination.py
+├── storage.py
 ├── README.md
 └── screenshots/
 ```
