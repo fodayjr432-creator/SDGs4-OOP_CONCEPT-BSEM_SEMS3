@@ -10,7 +10,7 @@ This project is a small Python console application created to demonstrate Object
 Manual record-keeping of examination results often leads to mistakes, missing paperwork, and delays in calculating grades. This project provides a simple digital method for recording, validating, and reviewing academic results in a beginner-friendly way.
 
 ## Proposed Solution
-The system uses Python classes to model students and examination results. It stores multiple results in a list, checks each score for validity, calculates the appropriate grade, and displays a final summary in the terminal.
+The system uses Python classes to model students and examination results. During one run, it stores multiple results in a list, checks each score for validity, calculates the appropriate grade, and displays a final summary. The list is temporary: records are not saved when the program exits.
 
 ## Objectives
 - Record student information
@@ -86,12 +86,26 @@ Open the terminal in the project folder and run:
 ```bash
 python main.py
 ```
-
 If you are using Windows and Python is installed via the launcher, you can also run:
 
 ```bash
 py main.py
 ```
+
+## Tests
+Run the score-validation regression tests with:
+
+```bash
+py -m unittest discover -v
+```
+
+The tests use Python's standard library and do not require third-party packages.
+
+## Current Scope and Limitations
+- This is a single-user command-line learning prototype. It has no login, account roles, or authorization system.
+- Student and result data is held in memory only and is lost when the program exits. There is no database, migration, or environment configuration.
+- The current workflow creates and displays results; it does not provide persistent listing, search, update, or delete operations.
+- Do not use real student information or treat this prototype as a production records system.
 
 ## Example Output
 ```text

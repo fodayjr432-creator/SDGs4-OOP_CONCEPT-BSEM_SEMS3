@@ -1,10 +1,12 @@
+import math
+
+
 class ExamResult:
-    """Represents a student's exam result for one subject."""
+    """Represents a student's exam result for one subject/module."""
 
     def __init__(self, student, subject, score):
         if student is None:
             raise ValueError("A valid Student object is required.")
-
         if not self.is_valid_score(score):
             raise ValueError("Score must be between 0 and 100.")
 
@@ -15,7 +17,12 @@ class ExamResult:
     @staticmethod
     def is_valid_score(score):
         """Validate whether the score is between 0 and 100."""
-        return isinstance(score, (int, float)) and 0 <= score <= 100
+        return (
+            isinstance(score, (int, float))
+            and not isinstance(score, bool)
+            and math.isfinite(score)
+            and 0 <= score <= 100
+        )
 
     def calculate_grade(self):
         """Calculate the grade for the score."""
