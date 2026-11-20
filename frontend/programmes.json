@@ -1,0 +1,191 @@
+[
+  {
+    "code": "CE",
+    "name": "BSc Computer Engineering",
+    "active": true,
+    "modules": [
+      {
+        "code": "PF",
+        "name": "Programming Fundamentals",
+        "level": "1",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "CE",
+        "name": "Computer Engineering Principles",
+        "level": "1",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "DSA",
+        "name": "Data Structures and Algorithms",
+        "level": "2",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "DBMS",
+        "name": "Database Management Systems",
+        "level": "2",
+        "semester": "2",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "CN",
+        "name": "Computer Networks",
+        "level": "3",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "ES",
+        "name": "Embedded Systems",
+        "level": "3",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "VLSI",
+        "name": "VLSI Design",
+        "level": "3",
+        "semester": "2",
+        "description": "",
+        "active": true
+      }
+    ]
+  },
+  {
+    "code": "BICT",
+    "name": "BSc Information and Communication Technology",
+    "active": true,
+    "modules": [
+      {
+        "code": "PF",
+        "name": "Programming Fundamentals",
+        "level": "1",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "CS",
+        "name": "Computer Systems",
+        "level": "1",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "DBMS",
+        "name": "Database Management Systems",
+        "level": "2",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "WD",
+        "name": "Web Development",
+        "level": "2",
+        "semester": "2",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "CN",
+        "name": "Computer Networks",
+        "level": "3",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "SAD",
+        "name": "Systems Analysis and Design",
+        "level": "2",
+        "semester": "2",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "IS",
+        "name": "Information Security",
+        "level": "3",
+        "semester": "2",
+        "description": "",
+        "active": true
+      }
+    ]
+  },
+  {
+    "code": "BSE",
+    "name": "BSc Software Engineering",
+    "active": true,
+    "modules": [
+      {
+        "code": "PF",
+        "name": "Programming Fundamentals",
+        "level": "1",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "OOP",
+        "name": "Object-Oriented Programming",
+        "level": "1",
+        "semester": "2",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "DSA",
+        "name": "Data Structures and Algorithms",
+        "level": "2",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "DBMS",
+        "name": "Database Management Systems",
+        "level": "2",
+        "semester": "2",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "SEP",
+        "name": "Software Engineering Principles",
+        "level": "3",
+        "semester": "1",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "WAD",
+        "name": "Web Application Development",
+        "level": "3",
+        "semester": "2",
+        "description": "",
+        "active": true
+      },
+      {
+        "code": "ST",
+        "name": "Software Testing",
+        "level": "3",
+        "semester": "2",
+        "description": "",
+        "active": true
+      }
+    ]
+  }
+]
