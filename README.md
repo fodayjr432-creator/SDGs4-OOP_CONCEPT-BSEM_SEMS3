@@ -35,30 +35,27 @@ authentication for protected API requests.
 
 ## Current functionality and limitations
 
-- The desktop login calls the backend login endpoint and uses its DRF token for
-  authenticated API requests.
-- The Student Management page supports listing, searching, programme
-  filtering, viewing a selected student's current details, creating, editing,
-  and deleting students through the API. Network work runs in a background
-  thread. The API prevents deletion when examination results refer to a
-  student.
-- Dashboard, programme, module, examination, result, and report screens exist;
-  they have not all been verified end-to-end against PostgreSQL.
+- The desktop supports one-time institution administrator registration and
+  signs in through the backend login endpoint using a DRF token.
+- All desktop pages (Dashboard, Students, Programmes, Modules, Examinations,
+  Results, Reports) now communicate with the Django REST API through the
+  `AppState` service layer. Network work runs in a background thread.
+- The API prevents deletion when examination results refer to a student.
 - The console mode uses JSON data in `frontend/`, not PostgreSQL.
-- A production-data student create/edit/delete workflow has not been run as
-  part of the automated verification. Do not treat isolated test results as
-  proof of production persistence.
-- Login requires an existing backend account. There are no default or
-  demonstration credentials. Account provisioning must be handled through an
-  authorized, approved process; do not use the unavailable
-  `create_account`/`create_admin` commands.
+- Public registration is limited to the first institution administrator.
+  Further administrator provisioning and activation changes require an
+  authenticated institution administrator. There are no default or
+  demonstration credentials.
+- Automated tests pass for both frontend and backend. The opt-in live
+  PostgreSQL workflow test is documented in `frontend/README.md`.
 
 ## Requirements
 
 - Windows, macOS, or Linux
 - Python 3.10 or later
 - PostgreSQL server and access to the existing project database
-- Existing authorized backend account for signing in to the desktop app
+- The configured existing PostgreSQL database; do not create or substitute an
+  academic database
 
 The application dependencies are listed separately in
 [`frontend/requirements.txt`](frontend/requirements.txt) and
@@ -101,6 +98,13 @@ the application start. If database access or the required tables are
 unavailable, resolve that with the database administrator before using the
 application.
 
+The new account migration creates only the institution/profile tables; Django
+also needs its own authentication and token tables. Before applying migrations
+to the existing PostgreSQL database, back it up and have the database
+administrator inspect `python manage.py showmigrations` and
+`python manage.py migrate --plan`. Apply only the reviewed migrations with
+approval. No production migration is run by the automated tests.
+
 ## Run the application
 
 Open two terminals from the repository root and activate the virtual
@@ -114,6 +118,14 @@ python manage.py check
 python manage.py runserver 127.0.0.1:8000
 ```
 
+For initial setup, use the login window's **First-time institution setup**
+route after the reviewed Django migrations have been applied. Enter an
+institution name, administrator name, username, email, and a strong password.
+Passwords must be at least 12 characters and include at least one letter, one
+number, and one special character.
+Registration closes once an administrator exists. Sign in with the username
+and password just created; a successful login opens the existing dashboard.
+
 The public health endpoint is
 [`http://127.0.0.1:8000/api/status/`](http://127.0.0.1:8000/api/status/).
 It performs a database connectivity check. A successful health response does
@@ -125,8 +137,9 @@ not mean that a user is authenticated.
 python main.py
 ```
 
-Sign in using an existing authorized backend account. Protected API calls use
-the session token; logging out clears the desktop token.
+Sign in using the institution administrator account. Protected API calls use
+the session token; logging out invalidates the server token and clears the
+desktop token.
 
 To run the separate console workflow instead:
 
@@ -167,18 +180,39 @@ its own generated record.
 
 ## API and data safety
 
+- Initial registration status: `GET /api/auth/registration-status/`.
+- First administrator only: `POST /api/auth/register/`, with
+  `institution_name`, `administrator_name`, `username`, `email`, `password`,
+  and `confirm_password`.
 - Login: `POST /api/auth/login/`; protected requests send
   `Authorization: Token <token>`.
+- Current account/logout: `GET /api/auth/me/` and `POST /api/auth/logout/`.
+- Administrator management: `GET`/`POST /api/auth/admins/` and
+  `PATCH /api/auth/admins/<user_id>/` with `{"is_active": false}` or
+  `{"is_active": true}`. These routes require an active institution
+  administrator token. The last active administrator and the caller cannot
+  be deactivated through the API.
 - Student collection: `GET` and `POST /api/students/`.
 - Student detail: `GET`, `PUT`, and `DELETE /api/students/<student_id>/`.
 - Student search uses the `search` query parameter; programme filtering uses
   `programme`.
 - The displayed student identifier is the admission number. API detail/update
   paths use the database's integer `student_id`.
+- Programmes, modules, academic years, examinations, questions, results,
+  reports, and dashboard endpoints are available under `/api/` and require an
+  active institution administrator token. See
+  [backend/README.md](backend/README.md) for the full endpoint table.
 - Do not add demo credentials, seed fake academic records, or use local JSON
   as a fallback for PostgreSQL data.
 - Do not expose passwords or tokens in source control, logs, screenshots, or
   support requests.
+- Use HTTPS outside local development, keep the Django secret key and database
+  credentials private, and never send passwords except over a trusted secure
+  connection. Login and initial registration requests are rate limited.
+- For account recovery, a trusted backend operator can run
+  `python manage.py reset_institution_admin_password USERNAME` from `backend/`.
+  The password is prompted without echo and existing tokens are revoked.
+  This command does not activate a disabled account.
 
 ## Further reading
 

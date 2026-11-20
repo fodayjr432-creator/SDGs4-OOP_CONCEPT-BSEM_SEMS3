@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal
 from django.contrib.auth import authenticate
 from django.db import DatabaseError, connection, transaction
-from django.db.models import Q
+from django.db.models import Avg, Max, Q, Sum
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -51,6 +51,12 @@ def serialize_module(m):
             )}
 
 
+def serialize_academic_year(ay):
+    return {"academic_year_id": ay.academic_year_id, "year_name": ay.year_name,
+            "start_date": ay.start_date, "end_date": ay.end_date,
+            "is_current": ay.is_current}
+
+
 def serialize_student(s):
     return StudentSerializer(s).data
 
@@ -82,6 +88,12 @@ def api_status(request):
         return Response({"status": "unavailable", "database": "postgresql"}, status=503)
     return Response({"status": "ok", "database": "postgresql", "authentication_configured": True,
                      "data_api_available": True})
+
+
+@api_view(["GET"])
+def academic_years(request):
+    qs = AcademicYear.objects.all()
+    return Response([serialize_academic_year(ay) for ay in qs])
 
 
 @api_view(["POST"])
@@ -368,6 +380,34 @@ def result_detail(request, result_id):
 # Reports
 @api_view(["GET"])
 def reports(request):
+    report = _report_data()
+    report["student_reports"] = _student_report_data()
+    return Response(report)
+
+
+def _student_report_data():
+    students = (
+        Student.objects.select_related("programme")
+        .annotate(
+            total_score=Sum("exam_results__score"),
+            average_score=Avg("exam_results__score"),
+        )
+        .order_by("admission_number")
+    )
+    return [
+        {
+            "student_id": student.admission_number,
+            "name": f"{student.first_name} {student.last_name}".strip(),
+            "programme": student.programme.programme_code,
+            "total_score": round(float(student.total_score or 0), 2),
+            "average_score": round(float(student.average_score or 0), 2),
+            "overall_grade": calculate_grade(student.average_score or 0),
+        }
+        for student in students
+    ]
+
+
+def _report_data():
     total_students = Student.objects.count()
     total_programmes = Programme.objects.count()
     total_modules = Module.objects.count()
@@ -378,7 +418,7 @@ def reports(request):
     grade_dist = {}
     for g in ["A", "B", "C", "D", "F"]:
         grade_dist[g] = ExamResult.objects.filter(grade=g).count()
-    return Response({
+    return {
         "total_students": total_students,
         "total_programmes": total_programmes,
         "total_modules": total_modules,
@@ -387,10 +427,50 @@ def reports(request):
         "passed": passed,
         "failed": failed,
         "grade_distribution": grade_dist,
-    })
+    }
 
 
 # Dashboard
 @api_view(["GET"])
 def dashboard(request):
-    return reports(request)
+    report = _report_data()
+    return Response(
+        {
+            "counts": {
+                "students": report["total_students"],
+                "programmes": report["total_programmes"],
+                "modules": report["total_modules"],
+                "examinations": report["total_examinations"],
+                "results": report["total_results"],
+            },
+            "recent_results": _recent_dashboard_results(),
+        }
+    )
+
+
+def _recent_dashboard_results():
+    recent_students = (
+        ExamResult.objects.values(
+            "student_id",
+            "student__first_name",
+            "student__last_name",
+            "student__programme__programme_code",
+        )
+        .annotate(
+            average_score=Avg("score"),
+            latest_result=Max("date_recorded"),
+        )
+        .order_by("-latest_result", "student_id")[:10]
+    )
+    return [
+        {
+            "name": (
+                f'{student["student__first_name"]} '
+                f'{student["student__last_name"]}'
+            ).strip(),
+            "programme": student["student__programme__programme_code"],
+            "average_score": round(float(student["average_score"]), 2),
+            "overall_grade": calculate_grade(student["average_score"]),
+        }
+        for student in recent_students
+    ]

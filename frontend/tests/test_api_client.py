@@ -50,6 +50,25 @@ class ApiClientTests(unittest.TestCase):
                 self.client.login("user", "password")
         self.assertIsNone(self.client.token)
 
+    def test_institution_registration_sends_all_required_fields(self):
+        payload = {
+            "institution_name": "Example University",
+            "administrator_name": "Taylor Admin",
+            "username": "taylor-admin",
+            "email": "taylor@example.test",
+            "password": "Strong!Password2026",
+            "confirm_password": "Strong!Password2026",
+        }
+        with patch.object(
+            self.client,
+            "request",
+            return_value={"detail": "created"},
+        ) as request:
+            result = self.client.register_institution_administrator(**payload)
+
+        self.assertEqual(result, {"detail": "created"})
+        request.assert_called_once_with("POST", "/api/auth/register/", payload)
+
     def test_unauthorized_response_clears_session_token(self):
         self.client.token = "expired-token"
         with patch.object(

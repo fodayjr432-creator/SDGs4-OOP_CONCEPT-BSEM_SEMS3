@@ -108,8 +108,12 @@ class ResultsPage(QWidget):
         self.delete_button = QPushButton("Delete")
         self.delete_button.setObjectName("danger")
         self.delete_button.clicked.connect(self.delete_result)
-        self.add_button.setVisible(state.account.get("role") in {"admin", "lecturer"})
-        self.edit_button.setVisible(state.account.get("role") in {"admin", "lecturer"})
+        self.add_button.setVisible(
+            state.account.get("role") in {"admin", "institution_admin", "lecturer"}
+        )
+        self.edit_button.setVisible(
+            state.account.get("role") in {"admin", "institution_admin", "lecturer"}
+        )
         self.delete_button.setVisible(state.is_admin)
         for button in (self.add_button, self.edit_button, self.delete_button):
             toolbar.addWidget(button)
@@ -122,7 +126,7 @@ class ResultsPage(QWidget):
 
     def refresh(self):
         try:
-            self._results = self.state.load_results(self.search.text().strip())
+            self._results = self.state.load_results()
             self.table.populate(
                 [
                     (

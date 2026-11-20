@@ -12,6 +12,7 @@ from gui.windows.login_window import LoginWindow
 
 
 BACKEND_STATUS = {"authentication_configured": True}
+REGISTRATION_STATUS = {"registration_open": True}
 
 
 class LoginWindowTests(unittest.TestCase):
@@ -20,7 +21,17 @@ class LoginWindowTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        with patch.object(ApiClient, "status", return_value=BACKEND_STATUS):
+        self.registration_status_patch = patch.object(
+            ApiClient,
+            "registration_status",
+            return_value=REGISTRATION_STATUS,
+        )
+        self.registration_status_patch.start()
+        with patch.object(
+            ApiClient,
+            "status",
+            return_value=BACKEND_STATUS,
+        ):
             self.window = LoginWindow()
         self.window.show()
         self.wait_for(lambda: self.window.login_button.isEnabled())
@@ -28,6 +39,7 @@ class LoginWindowTests(unittest.TestCase):
     def tearDown(self):
         self.window.close()
         self.wait_for(lambda: self.window._worker is None)
+        self.registration_status_patch.stop()
 
     def wait_for(self, condition, timeout_ms=3000):
         elapsed = 0
@@ -96,6 +108,23 @@ class LoginWindowTests(unittest.TestCase):
         login.assert_not_called()
         self.assertIsNone(self.window.main_window)
         self.assertIn("authentication available", self.window.status.text())
+
+    def test_first_time_setup_opens_registration_dialog(self):
+        with patch(
+            "gui.windows.login_window.RegistrationWindow"
+        ) as registration_window:
+            registration_window.return_value.exec.return_value = 0
+            self.window.open_registration()
+
+        registration_window.assert_called_once_with(self.window.api, self.window)
+        registration_window.return_value.registration_succeeded.connect.assert_called_once()
+        registration_window.return_value.exec.assert_called_once()
+
+    def test_registration_route_is_hidden_after_first_setup(self):
+        self.window._registration_status_received({"registration_open": False})
+
+        self.assertFalse(self.window.registration_button.isVisible())
+        self.assertFalse(self.window.registration_button.isEnabled())
 
     def test_repeated_submission_is_ignored_while_processing(self):
         self.window.username.setText("actual-user")

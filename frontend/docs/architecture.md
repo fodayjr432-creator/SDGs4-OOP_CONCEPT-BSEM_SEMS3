@@ -28,11 +28,23 @@ The backend owns validation, authorization, business rules, and persistence.
 - The PyQt Student Management page uses the API for listing/search and
   student create, update, and delete operations. Its network work runs in a
   `QThread`; backend serializers validate input and database constraints.
-- Other GUI modules and production write persistence have not been verified
-  end-to-end. API access currently requires authentication but has no
-  application-specific role policy beyond that.
+- All GUI modules now use the API for listing/search, create, update, and
+  delete operations through the `AppState` service layer.
+- API access requires an active institution administrator token.
 - The standalone console workflow continues to use its existing JSON files.
   Those files are not the PostgreSQL database and are not imported automatically.
+
+## API contract
+
+The frontend and backend now agree on field names and endpoint paths:
+
+- Programmes: `programme_code`, `programme_name`, `description`, `is_active`
+- Modules: `module_code`, `module_name`, `level`, `semester`, `description`, `is_active`, `programme_ids`
+- Academic years: `academic_year_id`, `year_name`, `start_date`, `end_date`, `is_current`
+- Examinations: `examination_code`, `examination_title`, `module_id`, `academic_year_id`, `examination_type`, `examination_date`, `maximum_score`, `duration_minutes`, `status`
+- Questions: `question_text`, `question_type`, `options`, `correct_answer`, `marks`, `question_order`
+- Results: `student_id`, `examination_id`, `score`, `grade`, `remarks`
+- Students: `admission_number`, `first_name`, `last_name`, `age`, `gender`, `programme_id`, `is_active`
 
 ## Database schema relationships
 
@@ -51,14 +63,12 @@ database and test-only rows; they do not exercise production writes.
 
 The existing frontend `ExamResult` model accepts finite numeric scores from
 0 through 100 and maps them to A (70+), B (60+), C (50+), D (40+), and F
-(below 40). Backend result validation must preserve these rules while matching
-the existing database's examination maximum-score constraints.
+(below 40). Backend result validation preserves these rules while matching the
+existing database's examination maximum-score constraints.
 
 ## Remaining work
 
 1. Define and implement role-based permissions, if different authenticated
    users should have different read/write access.
-2. Verify programme, module, examination, result, reporting, and dashboard
-   GUI flows against the current API.
-3. Perform production read/write verification only with an authorized account
+2. Perform production read/write verification only with an authorized account
    and a user-approved, reversible test plan; preserve all existing records.

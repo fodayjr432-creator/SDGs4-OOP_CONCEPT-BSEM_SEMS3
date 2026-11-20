@@ -85,6 +85,31 @@ class ApiClient:
         self.token = token
         return response
 
+    def register_institution_administrator(
+        self,
+        institution_name,
+        administrator_name,
+        username,
+        email,
+        password,
+        confirm_password,
+    ):
+        return self.request(
+            "POST",
+            "/api/auth/register/",
+            {
+                "institution_name": institution_name,
+                "administrator_name": administrator_name,
+                "username": username,
+                "email": email,
+                "password": password,
+                "confirm_password": confirm_password,
+            },
+        )
+
+    def registration_status(self):
+        return self.request("GET", "/api/auth/registration-status/")
+
     def logout(self):
         if self.token:
             try:

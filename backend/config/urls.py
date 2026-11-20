@@ -1,12 +1,33 @@
 from django.urls import path
 
+from apps.accounts import views as account_views
 from . import views
 
 urlpatterns = [
     path("api/status/", views.api_status, name="api-status"),
-    path("api/auth/login/", views.login, name="login"),
-    path("api/auth/logout/", views.logout, name="logout"),
-    path("api/auth/me/", views.current_user, name="current-user"),
+    path(
+        "api/auth/registration-status/",
+        account_views.registration_status,
+        name="registration-status",
+    ),
+    path(
+        "api/auth/register/",
+        account_views.register_initial_administrator,
+        name="register-initial-administrator",
+    ),
+    path("api/auth/login/", account_views.login, name="login"),
+    path("api/auth/logout/", account_views.logout, name="logout"),
+    path("api/auth/me/", account_views.current_user, name="current-user"),
+    path(
+        "api/auth/admins/",
+        account_views.administrators,
+        name="administrators",
+    ),
+    path(
+        "api/auth/admins/<int:user_id>/",
+        account_views.administrator_detail,
+        name="administrator-detail",
+    ),
     path("api/programmes/", views.programmes, name="programmes"),
     path(
         "api/programmes/<int:programme_id>/",
@@ -19,6 +40,7 @@ urlpatterns = [
         views.module_detail,
         name="module-detail",
     ),
+    path("api/academic-years/", views.academic_years, name="academic-years"),
     path("api/students/", views.students, name="students"),
     path(
         "api/students/<int:student_id>/",

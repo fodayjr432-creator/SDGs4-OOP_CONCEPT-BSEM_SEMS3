@@ -1,5 +1,6 @@
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -9,6 +10,7 @@ from PyQt6.QtTest import QTest
 
 from gui.app_state import AppState
 from gui.pages import students_page
+from gui.pages.results_page import ResultsPage
 from gui.pages.students_page import StudentsPage
 from programme import Programme
 
@@ -17,6 +19,96 @@ class StudentIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
+
+    def test_institution_admin_role_enables_administrator_capabilities(self):
+        state = AppState.__new__(AppState)
+        state.account = {"username": "institution-admin", "role": "institution_admin"}
+
+        self.assertTrue(state.is_admin)
+
+    def test_staff_role_does_not_enable_administrator_capabilities(self):
+        state = AppState.__new__(AppState)
+        state.account = {"username": "teacher", "role": "staff"}
+
+        self.assertFalse(state.is_admin)
+
+    def test_institution_admin_role_shows_result_management_controls(self):
+        state = AppState.__new__(AppState)
+        state.account = {"username": "institution-admin", "role": "institution_admin"}
+        state.load_results = lambda: []
+        page = ResultsPage(state)
+
+        self.assertFalse(page.add_button.isHidden())
+        self.assertFalse(page.edit_button.isHidden())
+        self.assertFalse(page.delete_button.isHidden())
+
+    def test_staff_role_hides_result_management_controls(self):
+        state = AppState.__new__(AppState)
+        state.account = {"username": "teacher", "role": "staff"}
+        state.load_results = lambda: []
+        page = ResultsPage(state)
+
+        self.assertTrue(page.add_button.isHidden())
+        self.assertTrue(page.edit_button.isHidden())
+        self.assertTrue(page.delete_button.isHidden())
+
+    def test_load_reports_extracts_student_rows_from_summary_response(self):
+        state = AppState.__new__(AppState)
+        state.api = Mock()
+        reports = [{"student_id": "REPORT-001", "name": "Report Student"}]
+        state.api.get.return_value = {"total_students": 1, "student_reports": reports}
+
+        self.assertEqual(state.load_reports(), reports)
+        state.api.get.assert_called_once_with("/api/reports/")
+
+    def test_load_results_maps_database_ids_to_desktop_display_fields(self):
+        state = AppState.__new__(AppState)
+        state.api = Mock()
+        state.api.get.return_value = [
+            {
+                "result_id": 25,
+                "student_id": 9,
+                "examination_id": 11,
+                "score": "75.00",
+                "grade": "A",
+                "remarks": "",
+            }
+        ]
+        state.api.list_students.return_value = [
+            {
+                "student_id": 9,
+                "admission_number": "ADM-009",
+                "first_name": "Ada",
+                "last_name": "Example",
+                "age": 20,
+                "programme_id": 4,
+                "programme_code": "SCI",
+                "gender": None,
+                "is_active": True,
+            }
+        ]
+        state.programmes = [Programme("SCI", "Science", 4)]
+        state.examinations = [SimpleNamespace(id=11, title="Final Exam")]
+
+        results = state.load_results()
+
+        self.assertEqual(
+            results,
+            [
+                {
+                    "id": 25,
+                    "student_record_id": 9,
+                    "examination_record_id": 11,
+                    "student_id": "ADM-009",
+                    "name": "Ada Example",
+                    "programme": "SCI",
+                    "subject": "Final Exam",
+                    "score": "75.00",
+                    "grade": "A",
+                    "remarks": "",
+                }
+            ],
+        )
 
     def test_api_records_map_to_existing_gui_student_shape(self):
         state = AppState.__new__(AppState)

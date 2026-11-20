@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 
 from gui.app_state import AppState
 from gui.api_worker import ApiWorker
+from gui.windows.registration_window import RegistrationWindow
 from api_client import ApiClient, ApiError
 
 
@@ -141,6 +142,15 @@ QPushButton#loginSubmit:disabled {
     background: #94A3B8;
     color: #FFFFFF;
 }
+QPushButton#registrationLink {
+    background: transparent;
+    border: none;
+    color: #2563EB;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px;
+}
+QPushButton#registrationLink:hover { color: #1D4ED8; }
 QLabel#loginStatus {
     color: #64748B;
     font-size: 13px;
@@ -464,6 +474,18 @@ class LoginWindow(QWidget):
         self.login_button.setDefault(True)
         self.login_button.clicked.connect(self.login)
         card_layout.addWidget(self.login_button)
+        card_layout.addSpacing(8)
+
+        self.registration_button = QPushButton("First-time institution setup")
+        self.registration_button.setObjectName("registrationLink")
+        self.registration_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.registration_button.clicked.connect(self.open_registration)
+        self.registration_button.setEnabled(False)
+        card_layout.addWidget(
+            self.registration_button,
+            0,
+            Qt.AlignmentFlag.AlignHCenter,
+        )
 
         surface_layout.addWidget(card, 0, Qt.AlignmentFlag.AlignHCenter)
         surface_layout.addStretch(1)
@@ -510,11 +532,43 @@ class LoginWindow(QWidget):
         self._authentication_available = True
         self.login_button.setEnabled(True)
         self._set_status("")
+        self._start_worker(
+            self.api.registration_status,
+            self._registration_status_received,
+            self._registration_status_failed,
+        )
 
     def _backend_status_failed(self, message):
         self._authentication_available = True
         self._set_status(str(message), "error")
         self.login_button.setEnabled(True)
+        self.registration_button.setEnabled(True)
+
+    def _registration_status_received(self, result):
+        registration_open = (
+            isinstance(result, dict) and result.get("registration_open") is True
+        )
+        self.registration_button.setVisible(registration_open)
+        self.registration_button.setEnabled(registration_open)
+
+    def _registration_status_failed(self, _message):
+        self.registration_button.setVisible(True)
+        self.registration_button.setEnabled(True)
+
+    def open_registration(self):
+        if self._processing:
+            return
+        dialog = RegistrationWindow(self.api, self)
+        dialog.registration_succeeded.connect(self._registration_completed)
+        if dialog.exec():
+            self.username.setFocus()
+
+    def _registration_completed(self):
+        self.registration_button.setVisible(False)
+        self._set_status(
+            "Institution administrator created. Sign in with the new account.",
+            "success",
+        )
 
     def _set_status(self, message, feedback="neutral"):
         self.status.setText(message)

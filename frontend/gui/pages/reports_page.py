@@ -17,16 +17,6 @@ class ReportsPage(QWidget):
         layout.setContentsMargins(24, 20, 24, 24)
 
         toolbar = QHBoxLayout()
-        self.search = QLineEdit()
-        self.search.setPlaceholderText("Search student performance")
-        self.search.textChanged.connect(self.refresh)
-        toolbar.addWidget(self.search)
-        self.programme_filter = QComboBox()
-        self.programme_filter.addItem("All programmes", "")
-        for programme in state.programmes:
-            self.programme_filter.addItem(programme.name, programme.code)
-        self.programme_filter.currentTextChanged.connect(self.refresh)
-        toolbar.addWidget(self.programme_filter)
         export = QPushButton("Export CSV")
         export.clicked.connect(self.export_csv)
         toolbar.addWidget(export)
@@ -40,13 +30,8 @@ class ReportsPage(QWidget):
         self.refresh()
 
     def refresh(self):
-        query = self.search.text().strip() if hasattr(self, "search") else ""
-        programme_code = (
-            self.programme_filter.currentData()
-            if hasattr(self, "programme_filter") else ""
-        )
         try:
-            reports = self.state.load_reports(query, programme_code)
+            reports = self.state.load_reports()
             self._rows = [
                 (
                     record["student_id"],

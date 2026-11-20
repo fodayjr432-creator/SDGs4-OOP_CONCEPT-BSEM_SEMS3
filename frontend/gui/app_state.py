@@ -11,16 +11,18 @@ class AppState:
         self.programmes = []
         self.modules = []
         self.examinations = []
+        self.academic_years = []
         self.refresh_reference_data()
 
     @property
     def is_admin(self):
-        return self.account.get("role") == "admin"
+        return self.account.get("role") in {"admin", "institution_admin"}
 
     def refresh_reference_data(self):
         programme_rows = self.api.get("/api/programmes/")
         module_rows = self.api.get("/api/modules/")
         examination_rows = self.api.get("/api/examinations/")
+        academic_year_rows = self.api.get("/api/academic-years/")
 
         programmes_by_id = {}
         self.programmes = []
@@ -55,6 +57,14 @@ class AppState:
                     programme.add_module(module)
             self.modules.append(module)
 
+        self.academic_years = []
+        for item in academic_year_rows:
+            self.academic_years.append({
+                "academic_year_id": item["academic_year_id"],
+                "year_name": item["year_name"],
+                "is_current": item.get("is_current", False),
+            })
+
         self.examinations = []
         for item in examination_rows:
             module = next(
@@ -77,6 +87,7 @@ class AppState:
             examination.status = item["status"]
             examination.exam_type = item["examination_type"]
             examination.exam_date = item["examination_date"] or ""
+            examination.academic_year_id = item["academic_year_id"]
             for question_data in item.get("questions", []):
                 examination.add_question(
                     Question(
@@ -166,13 +177,55 @@ class AppState:
             )
         return students
 
-    def load_results(self, query=""):
-        return self.api.get(self.api.query_path("/api/results/", q=query))
+    def load_results(self, student_id=None, examination_id=None):
+        params = {}
+        if student_id:
+            params["student"] = student_id
+        if examination_id:
+            params["examination"] = examination_id
+        path = "/api/results/"
+        if params:
+            path = f"{path}?{urlencode(params)}"
+        result_rows = self.api.get(path)
+        students = {
+            student["id"]: student
+            for student in self.load_students()
+        }
+        examinations = {
+            examination.id: examination
+            for examination in self.examinations
+        }
+        mapped_results = []
+        for result in result_rows:
+            student = students.get(result["student_id"])
+            examination = examinations.get(result["examination_id"])
+            if student is None or examination is None:
+                raise ApiError(
+                    "The backend returned a result with missing related records."
+                )
+            mapped_results.append(
+                {
+                    "id": result["result_id"],
+                    "student_record_id": result["student_id"],
+                    "examination_record_id": result["examination_id"],
+                    "student_id": student["student_id"],
+                    "name": student["name"],
+                    "programme": student["programme"],
+                    "subject": examination.title,
+                    "score": result["score"],
+                    "grade": result["grade"],
+                    "remarks": result["remarks"],
+                }
+            )
+        return mapped_results
 
-    def load_reports(self, query="", programme=""):
-        return self.api.get(
-            self.api.query_path("/api/reports/", q=query, programme=programme)
-        )
+    def load_reports(self):
+        response = self.api.get("/api/reports/")
+        if not isinstance(response, dict) or not isinstance(
+            response.get("student_reports"), list
+        ):
+            raise ApiError("The backend returned an invalid report response.")
+        return response["student_reports"]
 
     def load_dashboard(self):
         return self.api.get("/api/dashboard/")
@@ -223,31 +276,31 @@ class AppState:
         try:
             for programme in self.programmes:
                 payload = {
-                    "code": programme.code,
-                    "name": programme.name,
+                    "programme_code": programme.code,
+                    "programme_name": programme.name,
                     "description": programme.description,
-                    "active": programme.active,
+                    "is_active": programme.active,
                 }
                 if programme.id is None:
                     saved = self.api.post("/api/programmes/", payload)
-                    programme.id = saved["id"]
+                    programme.id = saved["programme_id"]
                 else:
                     self.api.put(f"/api/programmes/{programme.id}/", payload)
                 for module in programme._modules:
                     module_payload = {
                         "programme_id": programme.id,
-                        "code": module.code,
-                        "name": module.name,
+                        "module_code": module.code,
+                        "module_name": module.name,
                         "level": str(module.level),
                         "semester": str(module.semester),
                         "description": module.description,
-                        "active": module.active,
+                        "is_active": module.active,
                     }
                     if module.id is None:
                         saved_module = self.api.post(
                             "/api/modules/", module_payload
                         )
-                        module.id = saved_module["id"]
+                        module.id = saved_module["module_id"]
                         module.programme_id = programme.id
                     else:
                         self.api.put(
@@ -263,18 +316,21 @@ class AppState:
         try:
             for examination in self.examinations:
                 payload = {
-                    "exam_id": examination.exam_id,
-                    "title": examination.title,
+                    "examination_code": examination.exam_id,
+                    "examination_title": examination.title,
                     "module_id": examination.module_id,
-                    "exam_type": getattr(examination, "exam_type", "Final"),
-                    "total_marks": examination.total_marks,
+                    "academic_year_id": getattr(examination, "academic_year_id", None),
+                    "examination_type": getattr(examination, "exam_type", "Final"),
+                    "examination_date": getattr(examination, "exam_date", "") or None,
+                    "maximum_score": examination.total_marks,
                     "duration_minutes": examination.duration_minutes,
-                    "exam_date": getattr(examination, "exam_date", ""),
                     "status": examination.status,
                 }
+                # Remove None values for optional fields
+                payload = {k: v for k, v in payload.items() if v is not None}
                 if examination.id is None:
                     saved = self.api.post("/api/examinations/", payload)
-                    examination.id = saved["id"]
+                    examination.id = saved["examination_id"]
                 else:
                     self.api.put(
                         f"/api/examinations/{examination.id}/", payload
@@ -285,15 +341,15 @@ class AppState:
                     saved_question = self.api.post(
                         f"/api/examinations/{examination.id}/questions/",
                         {
-                            "question_id": question.question_id,
-                            "text": question.text,
+                            "question_text": question.text,
                             "question_type": question.question_type,
                             "options": question.options,
                             "correct_answer": question.correct_answer,
                             "marks": question.marks,
+                            "question_order": question.question_id,
                         },
                     )
-                    question.id = saved_question["id"]
+                    question.id = saved_question["question_id"]
             self.refresh_reference_data()
         except ApiError:
             self.refresh_reference_data()

@@ -18,10 +18,14 @@ database.
 ## Desktop workflow
 
 The desktop includes Dashboard, Students, Programmes, Modules, Examinations,
-Results, and Reports pages. Student listing and CRUD are integrated; other
-pages have not yet been verified end-to-end against the current backend API.
+Results, and Reports pages. All pages now communicate with the backend API
+through the `AppState` service layer. Network work runs in a background
+`QThread` so the interface remains responsive.
+
 Use only authorized accounts and follow your institution's data-handling
-rules. Student records with examination results cannot be deleted.
+rules. Student records with examination results cannot be deleted. Only the
+institution administrator role may create or modify programmes, modules,
+examinations, questions, and results.
 
 ## Console workflow
 

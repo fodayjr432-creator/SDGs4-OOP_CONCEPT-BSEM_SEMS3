@@ -32,6 +32,11 @@ class QuestionDialog(QDialog):
         self.marks.setRange(1, 100)
         self.marks.setValue(1)
         layout.addWidget(self.marks)
+        layout.addWidget(QLabel("Question Order"))
+        self.question_order = QSpinBox()
+        self.question_order.setRange(1, 100)
+        self.question_order.setValue(1)
+        layout.addWidget(self.question_order)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
             | QDialogButtonBox.StandardButton.Cancel
@@ -49,7 +54,7 @@ class ExaminationDialog(QDialog):
         self.setMinimumWidth(470)
         layout = QVBoxLayout(self)
 
-        layout.addWidget(QLabel("Examination ID"))
+        layout.addWidget(QLabel("Examination Code"))
         self.exam_id = QLineEdit(examination.exam_id if examination else "")
         layout.addWidget(self.exam_id)
         layout.addWidget(QLabel("Title"))
@@ -71,6 +76,17 @@ class ExaminationDialog(QDialog):
             if index >= 0:
                 self.module.setCurrentIndex(index)
         layout.addWidget(self.module)
+        layout.addWidget(QLabel("Academic Year"))
+        self.academic_year = QComboBox()
+        for ay in state.academic_years:
+            self.academic_year.addItem(
+                ay["year_name"], ay["academic_year_id"]
+            )
+        if examination and getattr(examination, "academic_year_id", None):
+            index = self.academic_year.findData(examination.academic_year_id)
+            if index >= 0:
+                self.academic_year.setCurrentIndex(index)
+        layout.addWidget(self.academic_year)
         layout.addWidget(QLabel("Examination Type"))
         self.exam_type = QComboBox()
         self.exam_type.addItems(("Quiz", "Midterm", "Final", "Practical", "Assignment"))
@@ -92,8 +108,11 @@ class ExaminationDialog(QDialog):
         layout.addWidget(QLabel("Examination Date"))
         self.date = QDateEdit(QDate.currentDate())
         self.date.setCalendarPopup(True)
+        self.date.setSpecialValueText("Not set")
         if examination and getattr(examination, "exam_date", ""):
             self.date.setDate(QDate.fromString(examination.exam_date, "yyyy-MM-dd"))
+        else:
+            self.date.setDate(QDate())
         layout.addWidget(self.date)
 
         buttons = QDialogButtonBox(
@@ -128,7 +147,7 @@ class ExaminationsPage(QWidget):
             button.setVisible(state.is_admin)
             toolbar.addWidget(button)
         layout.addLayout(toolbar)
-        self.table = DataTable(("ID", "Title", "Module", "Type", "Max Marks",
+        self.table = DataTable(("Code", "Title", "Module", "Acad. Year", "Type", "Max Marks",
                                 "Duration", "Status"))
         layout.addWidget(self.table)
         self.refresh()
@@ -141,13 +160,16 @@ class ExaminationsPage(QWidget):
         except ApiError as error:
             QMessageBox.critical(self, "Examinations", str(error))
             return
+        academic_years = {ay["academic_year_id"]: ay["year_name"] for ay in self.state.academic_years}
         for examination in self.state.examinations:
             searchable = f"{examination.exam_id} {examination.title} {examination.module_code}".lower()
             if query in searchable:
+                ay_name = academic_years.get(examination.academic_year_id, "")
                 rows.append((
                     examination.exam_id,
                     examination.title,
                     examination.module_code,
+                    ay_name,
                     getattr(examination, "exam_type", "Final"),
                     examination.total_marks,
                     examination.duration_minutes,
@@ -170,12 +192,16 @@ class ExaminationsPage(QWidget):
         if not self.state.modules:
             QMessageBox.warning(self, "Examination", "Create a module first.")
             return
+        if not self.state.academic_years:
+            QMessageBox.warning(self, "Examination", "Create an academic year first.")
+            return
         if not dialog.exam_id.text().strip() or not dialog.title.text().strip():
-            QMessageBox.warning(self, "Examination", "Exam ID and title are required.")
+            QMessageBox.warning(self, "Examination", "Exam code and title are required.")
             return
         try:
             module_id = dialog.module.currentData()
             module = next(item for item in self.state.modules if item.id == module_id)
+            academic_year_id = dialog.academic_year.currentData()
             examination = Examination(
                 dialog.exam_id.text().strip(),
                 dialog.title.text().strip(),
@@ -185,8 +211,9 @@ class ExaminationsPage(QWidget):
                 module_id=module_id,
             )
             examination.exam_type = dialog.exam_type.currentText()
-            examination.exam_date = dialog.date.date().toString("yyyy-MM-dd")
-            examination.status = "draft"
+            examination.exam_date = dialog.date.date().toString("yyyy-MM-dd") if dialog.date.date().isValid() else ""
+            examination.academic_year_id = academic_year_id
+            examination.status = "Draft"
             self.state.add_examination(examination)
             QMessageBox.information(self, "Examination", "Examination created.")
             self.refresh()
@@ -203,13 +230,15 @@ class ExaminationsPage(QWidget):
         try:
             module_id = dialog.module.currentData()
             module = next(item for item in self.state.modules if item.id == module_id)
+            academic_year_id = dialog.academic_year.currentData()
             examination.title = dialog.title.text().strip()
             examination.module_code = module.code
             examination.module_id = module_id
             examination.exam_type = dialog.exam_type.currentText()
             examination.total_marks = dialog.max_marks.value()
             examination.duration_minutes = dialog.duration.value()
-            examination.exam_date = dialog.date.date().toString("yyyy-MM-dd")
+            examination.exam_date = dialog.date.date().toString("yyyy-MM-dd") if dialog.date.date().isValid() else ""
+            examination.academic_year_id = academic_year_id
             self.state.save_examinations()
             QMessageBox.information(self, "Examination", "Examination updated.")
             self.refresh()
@@ -228,11 +257,12 @@ class ExaminationsPage(QWidget):
             QMessageBox.warning(self, "Question", "Question text is required.")
             return
         question = Question(
-            question_id=f"Q{len(examination.questions) + 1}",
+            question_id=str(len(examination.questions) + 1),
             text=text,
             question_type=dialog.question_type.currentText(),
             correct_answer=dialog.answer.text().strip(),
             marks=dialog.marks.value(),
+            record_id=dialog.question_order.value(),
         )
         examination.add_question(question)
         try:

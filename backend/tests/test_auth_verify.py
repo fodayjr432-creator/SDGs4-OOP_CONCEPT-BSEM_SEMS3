@@ -4,6 +4,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.academics.models import AcademicYear, Module, Programme
+from apps.accounts.models import Institution, UserProfile
 from apps.examinations.models import Examination
 from apps.results.models import ExamResult
 from apps.students.models import Student
@@ -38,6 +39,14 @@ class AuthAndStudentApiTests(TestCase):
         self.user = get_user_model().objects.create_user(
             username="student-api-test",
             password="test-only-password",
+        )
+        institution = Institution.objects.create(name="Test Institution")
+        UserProfile.objects.create(
+            user=self.user,
+            institution=institution,
+            administrator_name="Student API Test",
+            email="student-api-test@example.test",
+            role=UserProfile.Role.INSTITUTION_ADMIN,
         )
         self.programme = Programme.objects.create(
             programme_code="TST",
@@ -189,6 +198,80 @@ class AuthAndStudentApiTests(TestCase):
         response = self.client.delete(f"/api/students/{student_id}/")
         self.assertEqual(response.status_code, 409)
         self.assertTrue(Student.objects.filter(pk=student_id).exists())
+
+    def test_dashboard_returns_counts_and_recent_student_averages(self):
+        self.login()
+        student_response = self.client.post(
+            "/api/students/",
+            self.student_payload(),
+            format="json",
+        )
+        self.assertEqual(student_response.status_code, 201, student_response.data)
+        student_id = student_response.data["student_id"]
+        academic_year = AcademicYear.objects.create(
+            year_name="2098/2099",
+            start_date="2098-01-01",
+            end_date="2099-01-01",
+            is_current=False,
+        )
+        module = Module.objects.create(
+            module_code="DASH101",
+            module_name="Dashboard Test Module",
+        )
+        examination = Examination.objects.create(
+            examination_code="DASH-EXAM",
+            examination_title="Dashboard Test Exam",
+            module=module,
+            academic_year=academic_year,
+            examination_type=Examination.ExaminationType.FINAL,
+        )
+        ExamResult.objects.create(
+            student_id=student_id,
+            examination=examination,
+            score=80,
+            grade="A",
+        )
+
+        response = self.client.get("/api/dashboard/")
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(
+            response.data["counts"],
+            {
+                "students": 1,
+                "programmes": 1,
+                "modules": 1,
+                "examinations": 1,
+                "results": 1,
+            },
+        )
+        self.assertEqual(
+            response.data["recent_results"],
+            [
+                {
+                    "name": "Test Student",
+                    "programme": "TST",
+                    "average_score": 80.0,
+                    "overall_grade": "A",
+                }
+            ],
+        )
+        reports = self.client.get("/api/reports/")
+        self.assertEqual(reports.status_code, 200, reports.data)
+        self.assertEqual(reports.data["total_students"], 1)
+        self.assertEqual(
+            reports.data["student_reports"],
+            [
+                {
+                    "student_id": "TEST-001",
+                    "name": "Test Student",
+                    "programme": "TST",
+                    "total_score": 80.0,
+                    "average_score": 80.0,
+                    "overall_grade": "A",
+                }
+            ],
+        )
 
     def test_logout_revokes_token_and_clears_client_credentials(self):
         token = self.login()
