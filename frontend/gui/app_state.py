@@ -25,79 +25,145 @@ class AppState:
         programmes_by_id = {}
         self.programmes = []
         for item in programme_rows:
-            programme = Programme(item["code"], item["name"], item["id"])
+            programme = Programme(
+                item["programme_code"],
+                item["programme_name"],
+                item["programme_id"],
+            )
             programme.description = item["description"]
-            programme.active = bool(item["active"])
+            programme.active = bool(item["is_active"])
             programmes_by_id[programme.id] = programme
             self.programmes.append(programme)
 
         self.modules = []
         for item in module_rows:
             module = Module(
-                item["code"],
-                item["name"],
+                item["module_code"],
+                item["module_name"],
                 item["level"],
                 item["semester"],
-                item["description"],
-                item["id"],
-                item["programme_id"],
+                item.get("description") or "",
+                item["module_id"],
+                None,
             )
-            module.active = bool(item["active"])
-            programme = programmes_by_id.get(module.programme_id)
-            if programme is not None:
-                programme.add_module(module)
+            module.active = bool(item["is_active"])
+            programme_ids = item.get("programme_ids", [])
+            module.programme_id = programme_ids[0] if programme_ids else None
+            for programme_id in programme_ids:
+                programme = programmes_by_id.get(programme_id)
+                if programme is not None:
+                    programme.add_module(module)
             self.modules.append(module)
 
         self.examinations = []
         for item in examination_rows:
+            module = next(
+                (
+                    candidate
+                    for candidate in self.modules
+                    if candidate.id == item["module_id"]
+                ),
+                None,
+            )
             examination = Examination(
-                item["exam_id"],
-                item["title"],
-                item["module_code"],
-                item["total_marks"],
-                item["duration_minutes"],
-                item["id"],
+                item["examination_code"],
+                item["examination_title"],
+                module.code if module else "",
+                float(item["maximum_score"]),
+                item["duration_minutes"] or 60,
+                item["examination_id"],
                 item["module_id"],
             )
             examination.status = item["status"]
-            examination.exam_type = item["exam_type"]
-            examination.exam_date = item["exam_date"]
+            examination.exam_type = item["examination_type"]
+            examination.exam_date = item["examination_date"] or ""
             for question_data in item.get("questions", []):
                 examination.add_question(
                     Question(
                         question_data["question_id"],
-                        question_data["text"],
+                        question_data["question_text"],
                         question_data["question_type"],
-                        question_data["options"],
+                        question_data.get("options") or [],
                         question_data.get("correct_answer"),
                         question_data["marks"],
-                        question_data["id"],
+                        question_data["question_id"],
                     )
                 )
             self.examinations.append(examination)
 
+    @staticmethod
+    def _student_record(item):
+        return {
+            "id": item["student_id"],
+            "student_id": item["admission_number"],
+            "name": f'{item["first_name"]} {item["last_name"]}'.strip(),
+            "first_name": item["first_name"],
+            "last_name": item["last_name"],
+            "age": item["age"],
+            "programme_id": item["programme_id"],
+            "programme": item.get("programme_code", ""),
+            "gender": item.get("gender"),
+            "is_active": item["is_active"],
+            "results": [],
+            "total_score": 0,
+            "average_score": 0,
+            "result_count": 0,
+            "overall_grade": "F",
+        }
+
+    def _student_records(self, rows):
+        programmes = {item.id: item.code for item in self.programmes}
+        records = [self._student_record(row) for row in rows]
+        for record in records:
+            record["programme"] = programmes.get(
+                record["programme_id"], record["programme"]
+            )
+        return records
+
+    def load_students(self, search="", programme=None):
+        rows = self.api.list_students(search=search, programme=programme)
+        return self._student_records(rows)
+
+    def load_student(self, student_record_id):
+        row = self.api.get_student(student_record_id)
+        return self._student_records([row])[0]
+
     def load_records(self):
-        students = self.api.get("/api/students/")
+        students = self.load_students()
         results = self.api.get("/api/results/")
         by_record_id = {student["id"]: student for student in students}
-        for student in students:
-            student["results"] = []
+        examinations = {
+            item.id: item for item in self.examinations
+        }
         for result in results:
-            student = by_record_id.get(result["student_record_id"])
+            student = by_record_id.get(result["student_id"])
             if student is not None:
                 student["results"].append(
                     {
-                        "id": result["id"],
-                        "exam_id": result["exam_id"],
-                        "examination_record_id": result["examination_record_id"],
-                        "subject": result["subject"],
+                        "id": result["result_id"],
+                        "exam_id": (
+                            examinations[result["examination_id"]].exam_id
+                            if result["examination_id"] in examinations
+                            else str(result["examination_id"])
+                        ),
+                        "examination_record_id": result["examination_id"],
+                        "subject": (
+                            examinations[result["examination_id"]].title
+                            if result["examination_id"] in examinations
+                            else ""
+                        ),
                         "score": result["score"],
                         "grade": result["grade"],
                         "remarks": result["remarks"],
                     }
                 )
         for student in students:
-            student["average_score"] = round(student["average_score"], 2)
+            scores = [float(result["score"]) for result in student["results"]]
+            student["total_score"] = sum(scores)
+            student["result_count"] = len(scores)
+            student["average_score"] = (
+                round(sum(scores) / len(scores), 2) if scores else 0
+            )
         return students
 
     def load_results(self, query=""):
@@ -120,29 +186,37 @@ class AppState:
         return programme.id
 
     def save_record(self, record):
+        first_name = record.get("first_name")
+        last_name = record.get("last_name")
+        if first_name is None or last_name is None:
+            first_name, _, last_name = record["name"].partition(" ")
         payload = {
-            "student_id": record["student_id"],
-            "name": record["name"],
+            "admission_number": record["student_id"],
+            "first_name": first_name,
+            "last_name": last_name,
             "age": record["age"],
             "programme_id": self._programme_id(record["programme"]),
         }
-        created = self.api.post("/api/students/", payload)
+        created = self.api.create_student(payload)
         return created
 
     def update_student(self, student_record_id, record):
+        first_name = record.get("first_name")
+        last_name = record.get("last_name")
+        if first_name is None or last_name is None:
+            first_name, _, last_name = record["name"].partition(" ")
         payload = {
-            "student_id": record["student_id"],
-            "name": record["name"],
+            "admission_number": record["student_id"],
+            "first_name": first_name,
+            "last_name": last_name,
             "age": record["age"],
             "programme_id": self._programme_id(record["programme"]),
         }
-        updated = self.api.put(
-            f"/api/students/{student_record_id}/", payload
-        )
+        updated = self.api.update_student(student_record_id, payload)
         return updated
 
     def delete_record(self, student_record_id):
-        self.api.delete(f"/api/students/{student_record_id}/")
+        self.api.delete_student(student_record_id)
         return True
 
     def save_programmes(self):

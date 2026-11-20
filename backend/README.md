@@ -53,20 +53,28 @@ python manage.py runserver 127.0.0.1:8000
 `GET http://127.0.0.1:8000/api/status/` runs a real PostgreSQL `SELECT 1` and
 reports whether the database is reachable.
 
-## Current integration boundary
+## Authentication and API
 
-The existing database has no application account/user table. Authentication
-was explicitly deferred, so the login endpoint and academic data endpoints
-return HTTP 503; they do not bypass the backend or expose real student and
-result records without authorization. The PyQt client therefore cannot yet
-complete login or CRUD against PostgreSQL.
+The login endpoint authenticates an existing Django account and returns a DRF
+token. Send it on protected requests as
+`Authorization: Token <token>`. The student API supports listing/search,
+retrieval, creation, updates, and deletion. Students with examination results
+cannot be deleted. The PyQt login and Student Management page use this API;
+other GUI modules are not yet claimed as end-to-end verified.
 
 The ORM models use `managed = False` to prevent Django from creating or
 altering existing tables. The backend preserves the database's current records
 and does not automatically import the frontend's JSON catalogue or create
-demonstration accounts.
+demonstration accounts. Django authentication/token tables are separate from
+the academic schema and are used for application accounts.
 
-The root `main.py` starts the PyQt frontend. Start the backend separately from
-this directory; frontend-to-backend data workflows remain incomplete until
-authentication, repository/service operations, and API authorization are
-implemented and tested.
+Run isolated backend tests without using the configured production database:
+
+```powershell
+python manage.py test --settings=config.test_settings
+```
+
+`config.test_settings` uses an in-memory SQLite database only for tests. Do not
+use those settings to run the application. The root `main.py` starts the PyQt
+frontend; start the backend separately from this directory. Production
+student-record writes have not been performed as part of verification.

@@ -15,9 +15,10 @@ not claim official SDG or Digital Public Good status.
 - PyQt6 dashboard with student, programme, module, examination, result, and
   report pages.
 - A Django REST backend under `backend/` configured for the existing
-  PostgreSQL schema.
-- The backend exposes a database health check; record and login endpoints
-  remain disabled until authentication is implemented.
+  PostgreSQL schema, with DRF token authentication and protected data APIs.
+- The desktop login uses the backend token API. Student listing, registration,
+  updates, deletion, and search use the backend; other GUI modules still need
+  end-to-end verification.
 - The separate console workflow retains JSON persistence for its records and
   catalogue data.
 - CSV export for student performance reports.
@@ -137,25 +138,49 @@ python manage.py runserver 127.0.0.1:8000
 ```
 
 `http://127.0.0.1:8000/api/status/` verifies the PostgreSQL connection with a
-real `SELECT 1`. Authentication was deferred because the existing schema has
-no application account table. Login and academic-data endpoints return HTTP
-503; the desktop GUI cannot yet read or modify PostgreSQL records.
+real `SELECT 1`. The login endpoint issues a DRF token for an existing Django
+account. Protected endpoints require `Authorization: Token <token>`. The
+Student Management page uses those endpoints; do not treat the separate
+console/JSON workflow as PostgreSQL data.
 
 ## Tests
 
 Run the frontend tests from `frontend/`:
 
 ```powershell
-python -m unittest discover -v
+python -m unittest discover -s tests -v
 ```
 
 The GUI tests use PyQt6 and set Qt to the offscreen platform when needed.
+Run backend tests from `backend/` with
+`python manage.py test --settings=config.test_settings`; those tests use an
+isolated in-memory SQLite database and do not write to the configured
+PostgreSQL database.
+
+An opt-in live GUI/API student workflow test is available as
+`tests.test_live_student_workflow`. Run it from `frontend/` only against the
+intended PostgreSQL-backed API, with an existing authorized account:
+
+```powershell
+$env:EXAM_RUN_LIVE_STUDENT_TESTS = "YES"
+$env:EXAM_LIVE_TEST_USERNAME = "your-existing-account"
+python -m unittest tests.test_live_student_workflow -v
+Remove-Item Env:EXAM_RUN_LIVE_STUDENT_TESTS
+Remove-Item Env:EXAM_LIVE_TEST_USERNAME
+```
+
+The test prompts for the password without echoing it, creates a uniquely named
+temporary student, exercises the PyQt page's create/search/edit/reload/delete
+flow, and removes only that exact generated student during cleanup. Do not run
+it unless you have permission to create and delete that temporary record in
+the configured database.
 
 ## Data storage
 
-- Student and result records are stored in `records.json` by `RecordStore`.
-- Programme definitions are loaded from and saved to `programmes.json`.
-- Examination definitions are loaded from and saved to `examinations.json`.
+- The separate console workflow stores its student and result records in
+  `records.json` and its catalogues in JSON files.
+- The PyQt Student Management page reads and writes student records through the
+  authenticated API and existing PostgreSQL tables.
 - These paths are stored in `frontend/` when launched with the root
   compatibility launcher.
 - The SQLite file in `instance/` is not read or written by current application
@@ -169,8 +194,9 @@ for the current persistence flow and limitations.
 
   This project is a learning prototype in an education-sector context. It is not
   an official national examination system and is not certified as a Digital
-  Public Good. The configured PostgreSQL database contains real records; the
-  GUI data endpoints remain closed while authentication is deferred.
+  Public Good. The configured PostgreSQL database contains real records; use
+  existing authorized accounts only and do not use the console workflow for
+  PostgreSQL records.
 
   ## Documentation
 
@@ -181,16 +207,18 @@ for the current persistence flow and limitations.
 
 ## Current limitations and future work
 
-- Backend authentication and authorization are not implemented because no
-  account table exists in the inspected PostgreSQL schema.
+- Backend token authentication is implemented using Django accounts. The API
+  currently applies authenticated-user access; a finer role/permission policy
+  has not been specified or verified.
 - JSON writes are direct file writes rather than atomic/transactional updates.
 - Persistence paths depend on the current working directory.
-- The GUI's PostgreSQL data operations remain disabled until authenticated API
-  services are implemented.
+- Only login and Student Management GUI flows have been integrated/tested in
+  this phase. Other GUI modules are not claimed as end-to-end verified.
 - The console workflow remains separate and uses JSON files; those files are
   not imported into PostgreSQL.
-- Test coverage currently focuses on login flow and score validation; broader
-  persistence and page-level tests would be useful.
+- Automated student CRUD tests use isolated test data. No production student
+  records were created or modified during verification, and persistence across
+  a production application restart has not been exercised.
 - Future improvements may include safer JSON writes, clearer persistence error
   reporting, additional tests, and a production-ready identity solution. Any
   such work should preserve existing records and be planned separately.

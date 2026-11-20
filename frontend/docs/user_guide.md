@@ -2,24 +2,26 @@
 
 ## Backend status
 
-The desktop application is being connected through the Django REST backend to
-the existing PostgreSQL database. The backend's `/api/status/` endpoint checks
-the real database connection.
+The desktop application connects to the existing PostgreSQL database through
+the Django REST backend. The backend's `/api/status/` endpoint checks the real
+database connection.
 
-The existing PostgreSQL schema does not contain application accounts. Login
-and data endpoints are intentionally disabled until secure authentication and
-authorization are implemented. The GUI will report that sign-in is unavailable;
-there are no default or demonstration credentials.
+Sign in with an existing Django application account. There are no default or
+demonstration credentials. The Student Management page loads and changes
+records through the authenticated API. The frontend does not connect directly
+to PostgreSQL.
 
 Do not use the console workflow or its JSON files as a substitute for the
 PostgreSQL-backed GUI. Console data is separate and is not imported into the
 database.
 
-## Intended desktop workflow
+## Desktop workflow
 
-After authenticated API access is implemented, the GUI is intended to provide
-Dashboard, Students, Programmes, Modules, Examinations, Results, and Reports.
-Until then, do not use those screens to enter or change real academic records.
+The desktop includes Dashboard, Students, Programmes, Modules, Examinations,
+Results, and Reports pages. Student listing and CRUD are integrated; other
+pages have not yet been verified end-to-end against the current backend API.
+Use only authorized accounts and follow your institution's data-handling
+rules. Student records with examination results cannot be deleted.
 
 ## Console workflow
 

@@ -1,23 +1,17 @@
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QLineEdit
+from PyQt6.QtWidgets import QApplication
 from PyQt6.QtTest import QTest
 
 from api_client import ApiClient, ApiError
 from gui.windows.login_window import LoginWindow
 
 
-BACKEND_STATUS = {
-    "status": "ok",
-    "database": "postgresql",
-    "authentication_configured": False,
-    "data_api_available": False,
-}
+BACKEND_STATUS = {"authentication_configured": True}
 
 
 class LoginWindowTests(unittest.TestCase):
@@ -29,93 +23,97 @@ class LoginWindowTests(unittest.TestCase):
         with patch.object(ApiClient, "status", return_value=BACKEND_STATUS):
             self.window = LoginWindow()
         self.window.show()
-        QTest.qWait(20)
+        self.wait_for(lambda: self.window.login_button.isEnabled())
 
     def tearDown(self):
         self.window.close()
+        self.wait_for(lambda: self.window._worker is None)
 
-    def test_authentication_deferred_message_is_shown(self):
-        self.assertIn("authentication is not configured", self.window.status.text())
-        self.assertIn("Sign-in is unavailable", self.window.status.text())
+    def wait_for(self, condition, timeout_ms=3000):
+        elapsed = 0
+        while not condition() and elapsed < timeout_ms:
+            QTest.qWait(20)
+            elapsed += 20
+        self.assertTrue(condition(), "Timed out waiting for GUI worker.")
 
-    def test_empty_fields_are_reported_without_authentication(self):
-        self.window.login()
-
-        self.assertEqual(
-            self.window.status.text(),
-            "Enter both username and password.",
-        )
-        self.assertFalse(self.window._processing)
-        self.assertTrue(self.window.login_button.isEnabled())
-
-    def test_password_visibility_can_be_toggled(self):
-        self.assertEqual(
-            self.window.password.echoMode(),
-            QLineEdit.EchoMode.Password,
-        )
-        self.window.password_toggle.click()
-        self.assertEqual(
-            self.window.password.echoMode(),
-            QLineEdit.EchoMode.Normal,
-        )
-        self.window.password_toggle.click()
-        self.assertEqual(
-            self.window.password.echoMode(),
-            QLineEdit.EchoMode.Password,
-        )
-
-    def test_backend_authentication_unavailable_restores_the_form(self):
-        self.window.username.setText("entered-user")
+    def test_successful_login_opens_protected_window(self):
+        self.window.username.setText("actual-user")
         self.window.password.setText("entered-password")
+
+        def authenticate(username, password):
+            self.window.api.token = "returned-token"
+            return {"token": "returned-token", "username": username}
+
         with patch.object(
             self.window.api,
             "login",
-            side_effect=ApiError("Authentication is not configured."),
+            side_effect=authenticate,
+        ) as login, patch(
+            "gui.windows.login_window.AppState"
+        ) as app_state, patch(
+            "gui.windows.main_window.MainWindow"
+        ) as main_window:
+            self.window.login()
+            self.wait_for(lambda: self.window.main_window is not None)
+
+        login.assert_called_once_with("actual-user", "entered-password")
+        self.assertEqual(self.window.api.token, "returned-token")
+        app_state.assert_called_once_with(
+            username="actual-user",
+            api_client=self.window.api,
+            account={"token": "returned-token", "username": "actual-user"},
+        )
+        main_window.assert_called_once()
+        main_window.return_value.show.assert_called_once()
+
+    def test_invalid_credentials_keep_protected_window_closed(self):
+        self.window.username.setText("actual-user")
+        self.window.password.setText("wrong-password")
+        with patch.object(
+            self.window.api,
+            "login",
+            side_effect=ApiError("Invalid credentials."),
         ):
             self.window.login()
-            QTest.qWait(50)
+            self.wait_for(lambda: self.window.login_button.isEnabled())
 
-        self.assertEqual(
-            self.window.status.text(),
-            "Authentication is not configured.",
-        )
-        self.assertTrue(self.window.login_button.isEnabled())
-        self.assertTrue(self.window.username.isEnabled())
-        self.assertTrue(self.window.password.isEnabled())
+        self.assertEqual(self.window.status.text(), "Invalid credentials.")
         self.assertIsNone(self.window.main_window)
 
-    def test_enter_submits_from_the_password_field(self):
-        self.window.username.setText("entered-user")
-        self.window.username.setFocus()
-        QTest.keyClick(self.window.username, Qt.Key.Key_Return)
-        self.assertTrue(self.window.password.hasFocus())
+    def test_empty_fields_do_not_send_authentication_request(self):
+        with patch.object(self.window.api, "login") as login:
+            self.window.login()
 
-        self.window.password.setText("entered-password")
-        with patch.object(
-            self.window.api,
-            "login",
-            side_effect=ApiError("Authentication is not configured."),
-        ):
-            QTest.keyClick(self.window.password, Qt.Key.Key_Return)
-            QTest.qWait(50)
-
-        self.assertIsNone(self.window.main_window)
+        login.assert_not_called()
+        self.assertEqual(self.window.status.text(), "Enter both username and password.")
         self.assertTrue(self.window.login_button.isEnabled())
+
+    def test_authentication_unavailable_prevents_login(self):
+        self.window._authentication_available = False
+        with patch.object(self.window.api, "login") as login:
+            self.window.login()
+
+        login.assert_not_called()
+        self.assertIsNone(self.window.main_window)
+        self.assertIn("authentication available", self.window.status.text())
 
     def test_repeated_submission_is_ignored_while_processing(self):
-        self.window.username.setText("entered-user")
+        self.window.username.setText("actual-user")
         self.window.password.setText("entered-password")
-        with patch.object(
-            self.window.api,
-            "login",
-            side_effect=ApiError("Authentication is not configured."),
-        ) as login_mock:
-            self.window.login()
-            self.window.login()
-            self.assertFalse(self.window.login_button.isEnabled())
-            QTest.qWait(50)
+        operation_started = Mock()
 
-        login_mock.assert_called_once_with("entered-user", "entered-password")
+        def delayed_login(*_args):
+            operation_started()
+            QTest.qWait(100)
+            raise ApiError("Invalid credentials.")
+
+        with patch.object(self.window.api, "login", side_effect=delayed_login):
+            self.window.login()
+            self.window.login()
+            self.wait_for(lambda: self.window.login_button.isEnabled())
+
+        operation_started.assert_called_once()
+        self.assertIsNone(self.window.main_window)
 
 
 if __name__ == "__main__":

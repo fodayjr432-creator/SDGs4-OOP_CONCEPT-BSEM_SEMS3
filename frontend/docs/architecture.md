@@ -22,9 +22,15 @@ The backend owns validation, authorization, business rules, and persistence.
   `exam_results`, and `result_audit` tables. `managed = False` prevents Django
   migrations from creating or changing those tables.
 - `GET /api/status/` runs a real PostgreSQL `SELECT 1`.
-- The existing PostgreSQL schema has no application account/user table.
-  Authentication was deferred, so login and academic-data API endpoints return
-  HTTP 503. They do not fall back to demo credentials, JSON, or SQLite.
+- Login uses Django authentication and DRF Token Authentication. Protected API
+  endpoints require a token; the desktop client sends it in the
+  `Authorization: Token ...` header and clears it after logout or a 401.
+- The PyQt Student Management page uses the API for listing/search and
+  student create, update, and delete operations. Its network work runs in a
+  `QThread`; backend serializers validate input and database constraints.
+- Other GUI modules and production write persistence have not been verified
+  end-to-end. API access currently requires authentication but has no
+  application-specific role policy beyond that.
 - The standalone console workflow continues to use its existing JSON files.
   Those files are not the PostgreSQL database and are not imported automatically.
 
@@ -38,9 +44,8 @@ The backend owns validation, authorization, business rules, and persistence.
 - `result_audit` stores result change audit entries.
 
 The PostgreSQL schema is authoritative. Do not run migrations or schema
-initialization against it. Before implementing CRUD, add and verify the
-authenticated service/repository layer against these existing tables, then
-test writes using explicit, reversible test operations.
+initialization against it. Backend tests use a separate in-memory SQLite
+database and test-only rows; they do not exercise production writes.
 
 ## Grading rules
 
@@ -51,8 +56,9 @@ the existing database's examination maximum-score constraints.
 
 ## Remaining work
 
-1. Decide and implement secure account storage and authentication.
-2. Implement repository/service methods using the existing PostgreSQL schema.
-3. Gate every data endpoint by authorization and connect GUI operations.
-4. Verify student, programme, examination, result, reporting, and dashboard
-   operations without seeding or overwriting existing records.
+1. Define and implement role-based permissions, if different authenticated
+   users should have different read/write access.
+2. Verify programme, module, examination, result, reporting, and dashboard
+   GUI flows against the current API.
+3. Perform production read/write verification only with an authorized account
+   and a user-approved, reversible test plan; preserve all existing records.

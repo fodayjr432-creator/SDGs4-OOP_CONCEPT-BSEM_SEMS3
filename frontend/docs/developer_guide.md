@@ -45,11 +45,9 @@ Run the frontend test suite from `frontend/`:
 python -m unittest discover -v
 ```
 
-`tests/test_validation.py` covers score validation and a console validation
-case. `tests/test_login.py` covers the explicitly deferred-authentication
-state, input validation, password visibility, Enter-key submission, and
-duplicate-submit blocking. The GUI tests use PyQt6's offscreen platform when
-no platform override is set.
+The frontend tests cover API token handling, login success/failure, student
+field mapping, asynchronous student listing, and score validation. The GUI
+tests use PyQt6's offscreen platform when no platform override is set.
 
 When changing data handling, add tests for missing, valid, and malformed
 persisted data. When changing a GUI flow, cover both the success and failure
@@ -60,8 +58,12 @@ For backend changes, run checks from `backend/` after installing its
 
 ```powershell
 python manage.py check
-python manage.py test
+python manage.py test --settings=config.test_settings
 ```
+
+The test settings use an isolated in-memory SQLite database for test-only
+unmanaged-table fixtures. Do not run production database writes as routine
+tests.
 
 ## Persistence safety
 
@@ -96,8 +98,8 @@ and reviewed.
 - JSON writes are not atomic, and some load errors use silent fallback values.
 - Existing tests do not yet cover all GUI pages, JSON persistence, or CSV
   export.
-- Authentication and academic-data endpoints remain disabled until secure
-  account storage and authorization are implemented.
+- DRF token authentication is enabled. API endpoints currently apply
+  authenticated-user access without finer role-based authorization.
 
-Address these items incrementally. Do not enable data endpoints without
-authorization or access PostgreSQL directly from frontend code.
+Address these items incrementally. Do not access PostgreSQL directly from
+frontend code; all GUI data must go through the backend API.

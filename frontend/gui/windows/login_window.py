@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QPointF, QRectF, QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
 from PyQt6.QtWidgets import (
     QFrame,
@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from gui.app_state import AppState
+from gui.api_worker import ApiWorker
 from api_client import ApiClient, ApiError
 
 
@@ -320,6 +321,8 @@ class LoginWindow(QWidget):
         self.main_window = None
         self.api = ApiClient()
         self.account = None
+        self._worker = None
+        self._authentication_available = False
 
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -474,16 +477,44 @@ class LoginWindow(QWidget):
 
         root.addWidget(brand, 56)
         root.addWidget(surface, 44)
-        try:
-            status = self.api.status()
-            if not status.get("authentication_configured", False):
-                self._set_status(
-                    "The PostgreSQL backend is reachable, but authentication "
-                    "is not configured. Sign-in is unavailable.",
-                    "error",
-                )
-        except ApiError as error:
-            self._set_status(str(error), "error")
+        self.login_button.setEnabled(False)
+        self._set_status("Checking backend availability…")
+        self._start_worker(
+            self.api.status,
+            self._backend_status_received,
+            self._backend_status_failed,
+        )
+
+    def _start_worker(self, operation, succeeded, failed):
+        worker = ApiWorker(operation, self)
+        worker.succeeded.connect(succeeded)
+        worker.failed.connect(failed)
+        worker.finished.connect(lambda: self._worker_finished(worker))
+        self._worker = worker
+        worker.start()
+
+    def _worker_finished(self, worker):
+        if self._worker is worker:
+            self._worker = None
+        worker.deleteLater()
+
+    def _backend_status_received(self, status):
+        if not status.get("authentication_configured", False):
+            self._set_status(
+                "The PostgreSQL backend is reachable, but authentication "
+                "is not configured. Sign-in is unavailable.",
+                "error",
+            )
+            self.login_button.setEnabled(False)
+            return
+        self._authentication_available = True
+        self.login_button.setEnabled(True)
+        self._set_status("")
+
+    def _backend_status_failed(self, message):
+        self._authentication_available = True
+        self._set_status(str(message), "error")
+        self.login_button.setEnabled(True)
 
     def _set_status(self, message, feedback="neutral"):
         self.status.setText(message)
@@ -523,6 +554,12 @@ class LoginWindow(QWidget):
     def login(self):
         if self._processing:
             return
+        if not self._authentication_available:
+            self._set_status(
+                "The backend does not have authentication available.",
+                "error",
+            )
+            return
 
         username = self.username.text().strip()
         password = self.password.text()
@@ -543,47 +580,51 @@ class LoginWindow(QWidget):
         self.password.setEnabled(False)
         self.password_toggle.setEnabled(False)
         self._set_status("Checking your sign-in details…")
-        QTimer.singleShot(0, self._complete_login)
+        username = self.username.text().strip()
+        password = self.password.text()
+        self._start_worker(
+            lambda: self._authenticate_and_load(username, password),
+            self._login_succeeded,
+            self._login_failed,
+        )
 
-    def _complete_login(self):
-        try:
-            self.account = self.api.login(
-                self.username.text().strip(), self.password.text()
-            )
-        except ApiError as error:
-            self._set_status(str(error), "error")
-            self._processing = False
-            self.login_button.setEnabled(True)
-            self.login_button.setText("Sign In")
-            self.username.setEnabled(True)
-            self.password.setEnabled(True)
-            self.password_toggle.setEnabled(True)
-            self._set_invalid(self.username, True)
-            self._set_invalid(self.password_wrapper, True)
-            self.password.selectAll()
-            self.password.setFocus()
-            return
+    def _authenticate_and_load(self, username, password):
+        account = self.api.login(username, password)
+        state = AppState(
+            username=account["username"],
+            api_client=self.api,
+            account=account,
+        )
+        return account, state
 
+    def _login_succeeded(self, result):
+        self.account, state = result
         self._set_status("Sign-in successful. Opening your workspace…", "success")
-        QTimer.singleShot(220, self._open_dashboard)
+        self.password.clear()
+        self._open_dashboard(state)
 
-    def _open_dashboard(self):
+    def _login_failed(self, message):
+        self._set_status(str(message), "error")
+        self._processing = False
+        self.login_button.setEnabled(True)
+        self.login_button.setText("Sign In")
+        self.username.setEnabled(True)
+        self.password.setEnabled(True)
+        self.password_toggle.setEnabled(True)
+        self._set_invalid(self.username, True)
+        self._set_invalid(self.password_wrapper, True)
+        self.password.selectAll()
+        self.password.setFocus()
+
+    def _open_dashboard(self, state):
         from gui.windows.main_window import MainWindow
 
         try:
-            state = AppState(
-                username=self.account["username"],
-                api_client=self.api,
-                account=self.account,
-            )
             self.main_window = MainWindow(state)
             self.main_window.show()
             self.close()
-        except ApiError as error:
-            try:
-                self.api.logout()
-            except ApiError:
-                pass
+        except (ApiError, KeyError, TypeError, ValueError) as error:
+            self.api.token = None
             self.account = None
             self._processing = False
             self.login_button.setEnabled(True)

@@ -1,12 +1,15 @@
-import json
 import os
 from urllib.parse import urlencode
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+
+import requests
 
 
 class ApiError(Exception):
     """A network or API error that is safe to show in the desktop UI."""
+
+    def __init__(self, message, status_code=None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class ApiClient:
@@ -17,44 +20,54 @@ class ApiClient:
         self.base_url = configured_url.rstrip("/")
         self.timeout = timeout
         self.token = None
+        self._session = requests.Session()
 
     def request(self, method, path, payload=None):
-        body = None
         headers = {"Accept": "application/json"}
-        if payload is not None:
-            body = json.dumps(payload).encode("utf-8")
-            headers["Content-Type"] = "application/json"
         if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
-        request = Request(
-            f"{self.base_url}{path}",
-            data=body,
-            headers=headers,
-            method=method.upper(),
-        )
+            headers["Authorization"] = f"Token {self.token}"
         try:
-            with urlopen(request, timeout=self.timeout) as response:
-                if response.status == 204:
-                    return None
-                content = response.read()
-        except HTTPError as error:
-            try:
-                details = json.loads(error.read().decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                details = {}
-            message = details.get("error", f"Backend returned HTTP {error.code}.")
-            raise ApiError(message) from error
-        except (URLError, TimeoutError, OSError) as error:
+            response = self._session.request(
+                method.upper(),
+                f"{self.base_url}{path}",
+                json=payload,
+                headers=headers,
+                timeout=self.timeout,
+            )
+        except requests.RequestException as error:
             raise ApiError(
                 "Could not connect to the backend. Start it with "
                 "`python manage.py runserver 127.0.0.1:8000` from `backend/`."
             ) from error
 
-        if not content:
+        if response.status_code == 401:
+            self.token = None
+        if response.status_code >= 400:
+            try:
+                details = response.json()
+            except requests.exceptions.JSONDecodeError:
+                details = {}
+            message = details.get("error") if isinstance(details, dict) else None
+            if not message and isinstance(details, dict):
+                message = details.get("detail")
+            if not message and isinstance(details, dict):
+                message = next(
+                    (
+                        str(value[0] if isinstance(value, list) else value)
+                        for key, value in details.items()
+                        if key != "detail" and value
+                    ),
+                    None,
+                )
+            if not message:
+                message = f"Backend returned HTTP {response.status_code}."
+            raise ApiError(str(message), status_code=response.status_code)
+
+        if response.status_code == 204 or not response.content:
             return None
         try:
-            return json.loads(content.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            return response.json()
+        except requests.exceptions.JSONDecodeError as error:
             raise ApiError("The backend returned an invalid response.") from error
 
     def status(self):
@@ -66,8 +79,11 @@ class ApiClient:
             "/api/auth/login/",
             {"username": username, "password": password},
         )
-        self.token = response["token"]
-        return response["account"]
+        token = response.get("token") if isinstance(response, dict) else None
+        if not isinstance(token, str) or not token:
+            raise ApiError("The backend returned an invalid authentication response.")
+        self.token = token
+        return response
 
     def logout(self):
         if self.token:
@@ -81,7 +97,7 @@ class ApiClient:
 
     @staticmethod
     def query_path(path, **params):
-        filtered = {key: value for key, value in params.items() if value}
+        filtered = {key: value for key, value in params.items() if value not in (None, "")}
         suffix = f"?{urlencode(filtered)}" if filtered else ""
         return f"{path}{suffix}"
 
@@ -93,3 +109,29 @@ class ApiClient:
 
     def delete(self, path):
         return self.request("DELETE", path)
+
+    def list_students(self, search="", programme=None):
+        params = {}
+        if search:
+            params["search"] = search
+        if programme is not None:
+            params["programme"] = programme
+        path = "/api/students/"
+        if params:
+            path = f"{path}?{urlencode(params)}"
+        return self.get(path)
+
+    def get_student(self, student_id):
+        return self.get(f"/api/students/{student_id}/")
+
+    def create_student(self, payload):
+        return self.post("/api/students/", payload)
+
+    def update_student(self, student_id, payload):
+        return self.put(f"/api/students/{student_id}/", payload)
+
+    def delete_student(self, student_id):
+        return self.delete(f"/api/students/{student_id}/")
+
+    def close(self):
+        self._session.close()

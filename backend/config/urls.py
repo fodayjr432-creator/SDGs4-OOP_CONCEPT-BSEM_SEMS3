@@ -6,6 +6,7 @@ urlpatterns = [
     path("api/status/", views.api_status, name="api-status"),
     path("api/auth/login/", views.login, name="login"),
     path("api/auth/logout/", views.logout, name="logout"),
+    path("api/auth/me/", views.current_user, name="current-user"),
     path("api/programmes/", views.programmes, name="programmes"),
     path(
         "api/programmes/<int:programme_id>/",
