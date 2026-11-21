@@ -1,7 +1,9 @@
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel,
+    QPushButton, QSizePolicy, QHeaderView, QTableWidgetItem,
 )
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QColor
 
 from gui.components.stat_card import StatCard
 from gui.components.data_table import DataTable
@@ -16,25 +18,105 @@ class DashboardPage(QWidget):
         super().__init__()
         self.state = state
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 24)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(14)
+
+        welcome = QFrame()
+        welcome.setObjectName("card")
+        welcome_layout = QHBoxLayout(welcome)
+        welcome_layout.setContentsMargins(20, 14, 20, 14)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(3)
+        name = (
+            state.account.get("administrator_name")
+            or state.username
+            or "Administrator"
+        )
+        welcome_title = QLabel(f"Welcome, {name}")
+        welcome_title.setStyleSheet("font-size: 20px; font-weight: 800;")
+        welcome_subtitle = QLabel(
+            "Here's an overview of your academic activities."
+        )
+        welcome_subtitle.setObjectName("muted")
+        text_layout.addWidget(welcome_title)
+        text_layout.addWidget(welcome_subtitle)
+        welcome_layout.addLayout(text_layout, 1)
+
+        heading = QLabel("Dashboard")
+        heading.setObjectName("pageTitle")
+        heading.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        welcome_layout.addWidget(heading)
+        layout.addWidget(welcome)
 
         cards_layout = QHBoxLayout()
-        cards_layout.setSpacing(12)
+        cards_layout.setSpacing(10)
         self.card_labels = {}
-        titles = ("Total Students", "Total Programmes", "Total Modules",
-                  "Total Examinations", "Results Recorded")
+        markers = {
+            "Total Students": "ST",
+            "Total Programmes": "PR",
+            "Total Modules": "MO",
+            "Total Examinations": "EX",
+            "Results Recorded": "RS",
+        }
+        titles = (
+            "Total Students",
+            "Total Programmes",
+            "Total Modules",
+            "Total Examinations",
+            "Results Recorded",
+        )
         for title in titles:
-            card = StatCard(title, "0")
+            card = StatCard(title, "0", markers[title])
+            card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             cards_layout.addWidget(card)
             self.card_labels[title] = card
         layout.addLayout(cards_layout)
 
-        quick = QHBoxLayout()
-        quick.addWidget(QLabel("Quick Actions"))
-        quick.addStretch()
+        overview = QFrame()
+        overview.setObjectName("card")
+        overview_layout = QHBoxLayout(overview)
+        overview_layout.setContentsMargins(16, 12, 16, 12)
+        overview_layout.setSpacing(18)
+
+        overview_title = QLabel("Academic Overview")
+        overview_title.setStyleSheet("font-size: 16px; font-weight: 800;")
+        overview_layout.addWidget(overview_title)
+
+        self.examination_summary = QLabel("Examinations: 0")
+        self.examination_summary.setObjectName("muted")
+        overview_layout.addWidget(self.examination_summary)
+        overview_layout.addWidget(self._divider())
+
+        self.results_summary = QLabel("Results recorded: 0")
+        self.results_summary.setObjectName("muted")
+        overview_layout.addWidget(self.results_summary)
+        overview_layout.addWidget(self._divider())
+        self.gender_summary = QLabel(
+            "Gender distribution: Not available from the dashboard data"
+        )
+        self.gender_summary.setObjectName("muted")
+        overview_layout.addWidget(self.gender_summary)
+        overview_layout.addStretch()
+        layout.addWidget(overview)
+
+        quick = QFrame()
+        quick.setObjectName("card")
+        quick_layout = QVBoxLayout(quick)
+        quick_layout.setContentsMargins(16, 12, 16, 16)
+        quick_layout.setSpacing(10)
+
+        quick_heading = QLabel("Quick Actions")
+        quick_heading.setStyleSheet("font-size: 16px; font-weight: 800;")
+        quick_layout.addWidget(quick_heading)
+
+        quick_buttons = QHBoxLayout()
+        quick_buttons.setSpacing(10)
         for title in ("Add Student", "Record Result", "View Reports"):
             button = QPushButton(title)
             button.setObjectName("secondary")
+            button.setMinimumHeight(42)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
             target = {
                 "Add Student": "Students",
                 "Record Result": "Results",
@@ -43,15 +125,43 @@ class DashboardPage(QWidget):
             button.clicked.connect(
                 lambda _, page=target: self.action_requested.emit(page)
             )
-            quick.addWidget(button)
-        layout.addLayout(quick)
+            quick_buttons.addWidget(button)
+        quick_layout.addLayout(quick_buttons)
+        layout.addWidget(quick)
+
+        recent = QFrame()
+        recent.setObjectName("card")
+        recent_layout = QVBoxLayout(recent)
+        recent_layout.setContentsMargins(16, 12, 16, 16)
+        recent_layout.setSpacing(8)
 
         label = QLabel("Recent Examination Results")
-        label.setStyleSheet("font-size: 17px; font-weight: 700;")
-        layout.addWidget(label)
+        label.setStyleSheet("font-size: 16px; font-weight: 800;")
+        recent_layout.addWidget(label)
         self.table = DataTable(("Student", "Programme", "Average", "Overall Grade"))
-        layout.addWidget(self.table)
+        self.table.setMinimumHeight(180)
+        self.table.setMaximumHeight(220)
+        self.table.setShowGrid(False)
+        self.table.verticalHeader().setDefaultSectionSize(38)
+        self.table.setTextElideMode(Qt.TextElideMode.ElideRight)
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        recent_layout.addWidget(self.table)
+        layout.addWidget(recent)
+        layout.addStretch()
         self.refresh()
+
+    @staticmethod
+    def _divider():
+        divider = QFrame()
+        divider.setFrameShape(QFrame.Shape.VLine)
+        divider.setFrameShadow(QFrame.Shadow.Plain)
+        divider.setFixedWidth(1)
+        divider.setStyleSheet("background: #E5EAF2;")
+        return divider
 
     def refresh(self):
         try:
@@ -67,6 +177,13 @@ class DashboardPage(QWidget):
             for title, value in values.items():
                 self.card_labels[title].set_value(value)
 
+            self.examination_summary.setText(
+                f"Examinations: {counts['examinations']}"
+            )
+            self.results_summary.setText(
+                f"Results recorded: {counts['results']}"
+            )
+
             rows = [
                 (
                     result["name"],
@@ -76,6 +193,25 @@ class DashboardPage(QWidget):
                 )
                 for result in data["recent_results"]
             ]
+            self.table.clearSpans()
             self.table.populate(rows)
+            if not rows:
+                self.table.setRowCount(1)
+                empty = QTableWidgetItem("No recent examination results")
+                empty.setForeground(QColor("#64748B"))
+                empty.setTextAlignment(
+                    Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                )
+                self.table.setItem(0, 0, empty)
+                self.table.setSpan(0, 0, 1, 4)
+            else:
+                for row_index in range(len(rows)):
+                    for column_index in (2, 3):
+                        item = self.table.item(row_index, column_index)
+                        if item:
+                            item.setTextAlignment(
+                                Qt.AlignmentFlag.AlignCenter
+                                | Qt.AlignmentFlag.AlignVCenter
+                            )
         except ApiError as error:
             QMessageBox.critical(self, "Dashboard", str(error))

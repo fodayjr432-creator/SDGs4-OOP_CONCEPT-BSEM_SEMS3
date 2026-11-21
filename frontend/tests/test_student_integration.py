@@ -11,7 +11,7 @@ from PyQt6.QtTest import QTest
 from gui.app_state import AppState
 from gui.pages import students_page
 from gui.pages.results_page import ResultsPage
-from gui.pages.students_page import StudentsPage
+from gui.pages.students_page import StudentDialog, StudentsPage
 from programme import Programme
 
 
@@ -175,6 +175,7 @@ class StudentIntegrationTests(unittest.TestCase):
             "last_name": "Example",
             "name": "Ada Example",
             "age": 21,
+            "gender": "Female",
             "programme": "SCI",
         }
 
@@ -186,6 +187,7 @@ class StudentIntegrationTests(unittest.TestCase):
             "first_name": "Ada",
             "last_name": "Example",
             "age": 21,
+            "gender": "Female",
             "programme_id": 4,
         }
         state.api.create_student.assert_called_once_with(expected)
@@ -199,6 +201,7 @@ class StudentIntegrationTests(unittest.TestCase):
                 "student_id": "ADM-027",
                 "name": "Ada Example",
                 "age": 21,
+                "gender": None,
                 "programme": "SCI",
             }
         ]
@@ -208,7 +211,48 @@ class StudentIntegrationTests(unittest.TestCase):
 
         self.assertEqual(page.status.text(), "1 student(s).")
         self.assertEqual(page.table.item(0, 0).text(), "ADM-027")
+        self.assertEqual(page.table.item(0, 3).text(), "Not provided")
         page.close()
+
+    def test_student_dialog_requires_gender_and_values_include_selection(self):
+        state = Mock()
+        state.programmes = [Programme("SCI", "Science", 4)]
+        dialog = StudentDialog(state)
+
+        self.assertEqual(dialog.gender.currentText(), "Select Gender")
+        dialog.first_name.setText("Ada")
+        dialog.last_name.setText("Example")
+        dialog.student_id.setText("ADM-027")
+        dialog.programme.setCurrentIndex(0)
+
+        with patch.object(students_page.QMessageBox, "warning") as warning:
+            dialog._validate_and_accept()
+        warning.assert_called_once_with(dialog, "Student", "Select a gender.")
+        self.assertFalse(dialog.result() == QDialog.DialogCode.Accepted)
+
+        dialog.gender.setCurrentIndex(dialog.gender.findText("Female"))
+        self.assertEqual(dialog.values()["gender"], "Female")
+        dialog.close()
+
+    def test_student_dialog_edits_existing_gender(self):
+        state = Mock()
+        state.programmes = [Programme("SCI", "Science", 4)]
+        record = {
+            "student_id": "ADM-027",
+            "first_name": "Ada",
+            "last_name": "Example",
+            "name": "Ada Example",
+            "age": 21,
+            "gender": "Other",
+            "programme": "SCI",
+        }
+
+        dialog = StudentDialog(state, record)
+
+        self.assertEqual(dialog.gender.currentText(), "Other")
+        dialog.gender.setCurrentIndex(dialog.gender.findText("Male"))
+        self.assertEqual(dialog.values()["gender"], "Male")
+        dialog.close()
 
     def test_programme_filter_and_refresh_button_use_api_state(self):
         state = Mock()
@@ -282,6 +326,7 @@ class StudentIntegrationTests(unittest.TestCase):
             "last_name": "Student",
             "name": "Test Student",
             "age": 20,
+            "gender": "Male",
             "programme": "SCI",
         }
         add_dialog = Mock()

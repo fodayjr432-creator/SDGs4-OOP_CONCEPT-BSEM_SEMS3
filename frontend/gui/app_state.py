@@ -248,6 +248,7 @@ class AppState:
             "first_name": first_name,
             "last_name": last_name,
             "age": record["age"],
+            "gender": record.get("gender"),
             "programme_id": self._programme_id(record["programme"]),
         }
         created = self.api.create_student(payload)
@@ -263,6 +264,7 @@ class AppState:
             "first_name": first_name,
             "last_name": last_name,
             "age": record["age"],
+            "gender": record.get("gender"),
             "programme_id": self._programme_id(record["programme"]),
         }
         updated = self.api.update_student(student_record_id, payload)

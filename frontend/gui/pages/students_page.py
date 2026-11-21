@@ -45,6 +45,16 @@ class StudentDialog(QDialog):
         self.age.setRange(0, 120)
         self.age.setValue(record["age"] if record else 18)
         layout.addWidget(self.age)
+        layout.addWidget(QLabel("Gender"))
+        self.gender = QComboBox()
+        self.gender.addItem("Select Gender", None)
+        self.gender.addItem("Male", "Male")
+        self.gender.addItem("Female", "Female")
+        self.gender.addItem("Other", "Other")
+        if record:
+            gender_index = self.gender.findData(record.get("gender"))
+            self.gender.setCurrentIndex(gender_index if gender_index >= 0 else 0)
+        layout.addWidget(self.gender)
         layout.addWidget(QLabel("Programme"))
         self.programme = QComboBox()
         for programme in state.programmes:
@@ -61,9 +71,16 @@ class StudentDialog(QDialog):
             QDialogButtonBox.StandardButton.Save
             | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.accepted.connect(self.accept)
+        buttons.accepted.connect(self._validate_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def _validate_and_accept(self):
+        if self.gender.currentData() is None:
+            QMessageBox.warning(self, "Student", "Select a gender.")
+            self.gender.setFocus()
+            return
+        self.accept()
 
     def values(self):
         name = f"{self.first_name.text().strip()} {self.last_name.text().strip()}".strip()
@@ -73,6 +90,7 @@ class StudentDialog(QDialog):
             "first_name": self.first_name.text().strip(),
             "last_name": self.last_name.text().strip(),
             "age": self.age.value(),
+            "gender": self.gender.currentData(),
             "programme": self.programme.currentData(),
         }
 
@@ -127,7 +145,7 @@ class StudentsPage(QWidget):
         self.status = QLabel("")
         self.status.setMinimumHeight(20)
         layout.addWidget(self.status)
-        self.table = DataTable(("Student ID", "Name", "Age", "Programme"))
+        self.table = DataTable(("Student ID", "Name", "Age", "Gender", "Programme"))
         layout.addWidget(self.table)
 
     def refresh(self):
@@ -183,6 +201,7 @@ class StudentsPage(QWidget):
                     record["student_id"],
                     record["name"],
                     record["age"],
+                    record.get("gender") or "Not provided",
                     record["programme"],
                 )
                 for record in records
@@ -205,6 +224,9 @@ class StudentsPage(QWidget):
                 main_window.logout()
 
     def _validate_values(self, values):
+        if not values["gender"]:
+            QMessageBox.warning(self, "Student", "Select a gender.")
+            return False
         if not values["programme"]:
             QMessageBox.warning(self, "Student", "Select a programme.")
             return False

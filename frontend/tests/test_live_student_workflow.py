@@ -93,6 +93,7 @@ class LiveStudentWorkflowTests(unittest.TestCase):
             "last_name": "Workflow",
             "name": f"{first_name} Workflow",
             "age": 20,
+            "gender": "Other",
             "programme": programme_code,
         }
 
