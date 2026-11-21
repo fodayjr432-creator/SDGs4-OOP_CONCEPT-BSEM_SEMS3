@@ -220,7 +220,7 @@ def main():
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Digital Examination Results Management System")
+    parser = argparse.ArgumentParser(description="SDG 4 Quality Education")
     parser.add_argument(
         "--console",
         action="store_true",

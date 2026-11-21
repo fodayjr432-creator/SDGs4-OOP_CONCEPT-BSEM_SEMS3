@@ -12,7 +12,7 @@ class MainWindow(QMainWindow):
     def __init__(self, state):
         super().__init__()
         self.state = state
-        self.setWindowTitle("Digital Examination Results Management System")
+        self.setWindowTitle("SDG 4 Quality Education")
         self.resize(1280, 760)
         self.setObjectName("root")
 
@@ -28,7 +28,10 @@ class MainWindow(QMainWindow):
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
-        self.header = Header(state.username)
+        self.header = Header(
+            state.username,
+            state.account.get("institution"),
+        )
         content_layout.addWidget(self.header)
 
         self.stack = QStackedWidget()
@@ -68,6 +71,7 @@ class MainWindow(QMainWindow):
         self.header.set_title(name)
         if hasattr(page, "refresh"):
             page.refresh()
+
 
     def logout(self):
         from gui.windows.login_window import LoginWindow

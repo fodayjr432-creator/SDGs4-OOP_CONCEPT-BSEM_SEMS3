@@ -1,4 +1,4 @@
-# Digital Examination Results Management System
+# SDG 4 Quality Education
 
 A Python OOP learning project for managing academic programmes, students,
 examinations, results, and performance reports. It includes a PyQt6 desktop

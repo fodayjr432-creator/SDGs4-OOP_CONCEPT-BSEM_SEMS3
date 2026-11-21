@@ -17,6 +17,7 @@ from .serializers import (
     AdministratorInputSerializer,
     AdministratorStatusSerializer,
     InitialAdministratorSerializer,
+    InstitutionNameSerializer,
     serialize_administrator,
 )
 from .throttles import LoginRateThrottle, RegistrationRateThrottle
@@ -163,6 +164,22 @@ def current_user(request):
             "institution": profile.institution.name if profile else None,
         }
     )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsInstitutionAdministrator])
+def institution_detail(request):
+    serializer = InstitutionNameSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    with transaction.atomic():
+        institution = Institution.objects.select_for_update().get(
+            pk=request.user.account_profile.institution_id
+        )
+        institution.name = serializer.validated_data["institution_name"]
+        institution.save(update_fields=["name"])
+
+    return Response({"institution": institution.name})
 
 
 @api_view(["GET", "POST"])

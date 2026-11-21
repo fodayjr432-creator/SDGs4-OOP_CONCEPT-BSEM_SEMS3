@@ -76,6 +76,19 @@ class AdministratorStatusSerializer(serializers.Serializer):
     is_active = serializers.BooleanField()
 
 
+class InstitutionNameSerializer(serializers.Serializer):
+    institution_name = serializers.CharField(
+        max_length=255,
+        trim_whitespace=True,
+    )
+
+    def validate_institution_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Enter an institution name.")
+        return value
+
+
 def serialize_administrator(profile):
     return {
         "id": profile.user_id,

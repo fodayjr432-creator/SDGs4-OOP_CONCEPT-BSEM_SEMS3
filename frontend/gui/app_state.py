@@ -1,12 +1,23 @@
 from api_client import ApiClient, ApiError
 from examination import Examination, Question
 from programme import Module, Programme
+from storage import InstitutionNameStore
 
 
 class AppState:
+    DEFAULT_INSTITUTION_NAME = "Scaling Grammar School"
+
     def __init__(self, username="Administrator", api_client=None, account=None):
         self.username = username
         self.account = account or {"username": username, "role": "admin"}
+        self.institution_store = InstitutionNameStore()
+        default_institution_name = (
+            self.account.get("institution")
+            or self.DEFAULT_INSTITUTION_NAME
+        )
+        self.institution_name = self.institution_store.load(
+            default_institution_name
+        )
         self.api = api_client or ApiClient()
         self.programmes = []
         self.modules = []
@@ -229,6 +240,15 @@ class AppState:
 
     def load_dashboard(self):
         return self.api.get("/api/dashboard/")
+
+    def update_institution_name(self, institution_name):
+        name = institution_name.strip()
+        if not name:
+            raise ValueError("Institution name is required.")
+        self.institution_store.save(name)
+        self.institution_name = name
+        self.account["institution"] = name
+        return name
 
     def _programme_id(self, code):
         programme = next(

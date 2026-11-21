@@ -19,6 +19,11 @@ urlpatterns = [
     path("api/auth/logout/", account_views.logout, name="logout"),
     path("api/auth/me/", account_views.current_user, name="current-user"),
     path(
+        "api/auth/institution/",
+        account_views.institution_detail,
+        name="institution-detail",
+    ),
+    path(
         "api/auth/admins/",
         account_views.administrators,
         name="administrators",

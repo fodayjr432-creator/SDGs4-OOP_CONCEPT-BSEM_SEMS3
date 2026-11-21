@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel,
     QPushButton, QSizePolicy, QHeaderView, QTableWidgetItem,
+    QDialog, QLineEdit, QDialogButtonBox, QMessageBox,
 )
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QColor
@@ -28,13 +29,22 @@ class DashboardPage(QWidget):
 
         text_layout = QVBoxLayout()
         text_layout.setSpacing(3)
-        name = (
-            state.account.get("administrator_name")
-            or state.username
-            or "Administrator"
+        institution_name = getattr(
+            state,
+            "institution_name",
+            state.account.get("institution")
+            if hasattr(state, "account")
+            else "Scaling Grammar School",
         )
-        welcome_title = QLabel(f"Welcome, {name}")
+        self.welcome_title = QLabel(
+            f"Welcome to {institution_name}"
+        )
+        welcome_title = self.welcome_title
         welcome_title.setStyleSheet("font-size: 20px; font-weight: 800;")
+        welcome_title.setObjectName("dashboardWelcome")
+        welcome_title.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         welcome_subtitle = QLabel(
             "Here's an overview of your academic activities."
         )
@@ -42,6 +52,14 @@ class DashboardPage(QWidget):
         text_layout.addWidget(welcome_title)
         text_layout.addWidget(welcome_subtitle)
         welcome_layout.addLayout(text_layout, 1)
+
+        if state.is_admin:
+            edit_button = QPushButton("Edit Institution Name")
+            edit_button.setObjectName("secondary")
+            edit_button.setMinimumHeight(36)
+            edit_button.setCursor(Qt.CursorShape.PointingHandCursor)
+            edit_button.clicked.connect(self.edit_institution_name)
+            welcome_layout.addWidget(edit_button)
 
         heading = QLabel("Dashboard")
         heading.setObjectName("pageTitle")
@@ -153,6 +171,49 @@ class DashboardPage(QWidget):
         layout.addWidget(recent)
         layout.addStretch()
         self.refresh()
+
+    def edit_institution_name(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Institution Name")
+        dialog.setMinimumWidth(420)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+        layout.addWidget(QLabel("Institution name"))
+
+        name_input = QLineEdit(self.state.institution_name)
+        name_input.setAccessibleName("Institution name")
+        name_input.selectAll()
+        layout.addWidget(name_input)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        institution_name = name_input.text().strip()
+        if not institution_name:
+            QMessageBox.warning(
+                self,
+                "Institution",
+                "Institution name cannot be empty.",
+            )
+            return
+
+        try:
+            updated_name = self.state.update_institution_name(
+                institution_name
+            )
+            self.welcome_title.setText(f"Welcome to {updated_name}")
+        except (OSError, ValueError) as error:
+            QMessageBox.critical(self, "Institution", str(error))
 
     @staticmethod
     def _divider():

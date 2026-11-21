@@ -323,7 +323,7 @@ class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setObjectName("loginWindow")
-        self.setWindowTitle("Digital Examination Results Management System")
+        self.setWindowTitle("SDG 4 Quality Education")
         self.resize(1180, 760)
         self.setMinimumSize(900, 640)
         self.setStyleSheet(LOGIN_QSS)
@@ -349,7 +349,7 @@ class LoginWindow(QWidget):
         brand_row.addWidget(BrandMark())
         brand_text = QVBoxLayout()
         brand_text.setSpacing(3)
-        brand_name = QLabel("Digital Examination Results\nManagement System")
+        brand_name = QLabel("SDG 4\nQuality Education")
         brand_name.setObjectName("brandName")
         brand_name.setWordWrap(True)
         brand_text.addWidget(brand_name)
@@ -489,9 +489,7 @@ class LoginWindow(QWidget):
 
         surface_layout.addWidget(card, 0, Qt.AlignmentFlag.AlignHCenter)
         surface_layout.addStretch(1)
-        version_footer = QLabel(
-            "Digital Examination Results Management System  ·  v1.0"
-        )
+        version_footer = QLabel("SDG 4 Quality Education  ·  v1.0")
         version_footer.setObjectName("versionFooter")
         version_footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
         version_footer.setWordWrap(True)

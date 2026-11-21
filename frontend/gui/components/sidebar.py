@@ -29,7 +29,7 @@ class Sidebar(QWidget):
         layout.setContentsMargins(12, 18, 12, 18)
         layout.setSpacing(5)
 
-        brand = QLabel("EXAM 4 QUALITY")
+        brand = QLabel("SDG 4 Quality Education")
         brand.setStyleSheet("font-size: 17px; font-weight: 800; padding: 4px 8px 20px 8px;")
         layout.addWidget(brand)
 

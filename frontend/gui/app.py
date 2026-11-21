@@ -8,7 +8,7 @@ from gui.windows.login_window import LoginWindow
 
 def run():
     app = QApplication.instance() or QApplication(sys.argv)
-    app.setApplicationName("Digital Examination Results Management System")
+    app.setApplicationName("SDG 4 Quality Education")
     app.setStyleSheet(THEME_QSS)
 
     login = LoginWindow()

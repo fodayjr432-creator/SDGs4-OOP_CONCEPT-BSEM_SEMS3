@@ -1,5 +1,5 @@
 import logging
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.contrib.auth import authenticate
 from django.db import DatabaseError, connection, transaction
 from django.db.models import Avg, Max, Q, Sum
@@ -131,9 +131,18 @@ def programmes(request):
             qs = qs.filter(programme_code__icontains=code)
         return Response([serialize_programme(p) for p in qs])
     data = request.data
-    p = Programme.objects.create(
-        programme_code=data["programme_code"], programme_name=data["programme_name"],
-        description=data.get("description"), is_active=data.get("is_active", True))
+    if not data.get("programme_code") or not data.get("programme_name"):
+        return error_response("Programme code and name are required.")
+    try:
+        with transaction.atomic():
+            p = Programme.objects.create(
+                programme_code=data["programme_code"].strip(),
+                programme_name=data["programme_name"].strip(),
+                description=data.get("description"),
+                is_active=data.get("is_active", True),
+            )
+    except IntegrityError:
+        return error_response("A programme with that code or name already exists.", 409)
     return Response(serialize_programme(p), status=201)
 
 
@@ -163,13 +172,28 @@ def modules(request):
         qs = Module.objects.all()
         return Response([serialize_module(m) for m in qs])
     data = request.data
-    m = Module.objects.create(
-        module_code=data["module_code"], module_name=data["module_name"],
-        level=data.get("level", "1"), semester=data.get("semester", "1"),
-        description=data.get("description"), is_active=data.get("is_active", True))
-    prog_id = data.get("programme_id")
-    if prog_id:
-        ProgrammeModule.objects.create(programme_id=prog_id, module_id=m.module_id)
+    if not data.get("module_code") or not data.get("module_name"):
+        return error_response("Module code and name are required.")
+    try:
+        with transaction.atomic():
+            m = Module.objects.create(
+                module_code=data["module_code"].strip(),
+                module_name=data["module_name"].strip(),
+                level=data.get("level", "1"),
+                semester=data.get("semester", "1"),
+                description=data.get("description"),
+                is_active=data.get("is_active", True),
+            )
+            prog_id = data.get("programme_id")
+            if prog_id:
+                ProgrammeModule.objects.create(
+                    programme_id=prog_id,
+                    module_id=m.module_id,
+                )
+    except Programme.DoesNotExist:
+        return error_response("The selected programme was not found.", 404)
+    except IntegrityError:
+        return error_response("The module could not be saved.", 409)
     return Response(serialize_module(m), status=201)
 
 
@@ -264,12 +288,32 @@ def examinations(request):
         qs = Examination.objects.all()
         return Response([serialize_exam(e) for e in qs])
     data = request.data
-    e = Examination.objects.create(
-        examination_code=data["examination_code"], examination_title=data["examination_title"],
-        module_id=data["module_id"], academic_year_id=data["academic_year_id"],
-        examination_type=data["examination_type"], examination_date=data.get("examination_date"),
-        maximum_score=data.get("maximum_score", 100), duration_minutes=data.get("duration_minutes"),
-        status=data.get("status", "Draft"))
+    required = (
+        "examination_code",
+        "examination_title",
+        "module_id",
+        "academic_year_id",
+        "examination_type",
+    )
+    if any(not data.get(field) for field in required):
+        return error_response("Examination code, title, module, academic year, and type are required.")
+    try:
+        with transaction.atomic():
+            e = Examination.objects.create(
+                examination_code=data["examination_code"].strip(),
+                examination_title=data["examination_title"].strip(),
+                module_id=data["module_id"],
+                academic_year_id=data["academic_year_id"],
+                examination_type=data["examination_type"],
+                examination_date=data.get("examination_date"),
+                maximum_score=data.get("maximum_score", 100),
+                duration_minutes=data.get("duration_minutes"),
+                status=data.get("status", "Draft"),
+            )
+    except (Module.DoesNotExist, AcademicYear.DoesNotExist):
+        return error_response("The selected module or academic year was not found.", 404)
+    except (IntegrityError, ValidationError):
+        return error_response("The examination could not be saved.", 400)
     return Response(serialize_exam(e), status=201)
 
 
@@ -341,8 +385,18 @@ def results(request):
             qs = qs.filter(examination_id=eid)
         return Response([serialize_result(r) for r in qs])
     data = request.data
-    score = Decimal(str(data["score"]))
-    exam = Examination.objects.get(pk=data["examination_id"])
+    if not data.get("student_id") or not data.get("examination_id") or data.get("score") is None:
+        return error_response("Student, examination, and score are required.")
+    try:
+        score = Decimal(str(data["score"]))
+        exam = Examination.objects.get(pk=data["examination_id"])
+        Student.objects.only("student_id").get(pk=data["student_id"])
+    except InvalidOperation:
+        return error_response("Score must be a valid number.")
+    except Examination.DoesNotExist:
+        return error_response("The selected examination was not found.", 404)
+    except Student.DoesNotExist:
+        return error_response("The selected student was not found.", 404)
     if score < 0 or score > exam.maximum_score:
         return Response({"error": "Invalid score"}, status=400)
     if ExamResult.objects.filter(student_id=data["student_id"], examination_id=data["examination_id"]).exists():
@@ -364,7 +418,10 @@ def result_detail(request, result_id):
     if request.method == "PUT":
         data = request.data
         if "score" in data:
-            score = Decimal(str(data["score"]))
+            try:
+                score = Decimal(str(data["score"]))
+            except InvalidOperation:
+                return Response({"error": "Score must be a valid number."}, status=400)
             if score < 0 or score > r.examination.maximum_score:
                 return Response({"error": "Invalid score"}, status=400)
             r.score = score

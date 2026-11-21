@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -9,16 +10,106 @@ from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 from PyQt6.QtTest import QTest
 
 from gui.app_state import AppState
+from gui.pages import dashboard_page
 from gui.pages import students_page
+from gui.pages.dashboard_page import DashboardPage
 from gui.pages.results_page import ResultsPage
 from gui.pages.students_page import StudentDialog, StudentsPage
 from programme import Programme
+from storage import InstitutionNameStore
 
 
 class StudentIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
+
+    def test_institution_name_store_persists_separate_from_student_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings_path = os.path.join(directory, "institution_settings.json")
+            records_path = os.path.join(directory, "records.json")
+            store = InstitutionNameStore(settings_path)
+
+            store.save("Sierra Grammar School")
+            reloaded = InstitutionNameStore(settings_path)
+
+            self.assertEqual(
+                reloaded.load("Scaling Grammar School"),
+                "Sierra Grammar School",
+            )
+            self.assertFalse(os.path.exists(records_path))
+
+    def test_dashboard_institution_edit_updates_welcome_immediately(self):
+        state = Mock()
+        state.account = {
+            "username": "institution-admin",
+            "role": "institution_admin",
+            "institution": "Scaling Grammar School",
+        }
+        state.username = "institution-admin"
+        state.institution_name = "Scaling Grammar School"
+        state.is_admin = True
+        state.load_dashboard.return_value = {
+            "counts": {
+                "students": 0,
+                "programmes": 0,
+                "modules": 0,
+                "examinations": 0,
+                "results": 0,
+            },
+            "recent_results": [],
+        }
+        state.update_institution_name.side_effect = (
+            lambda name: setattr(state, "institution_name", name) or name
+        )
+        page = DashboardPage(state)
+
+        self.assertEqual(
+            page.welcome_title.text(),
+            "Welcome to Scaling Grammar School",
+        )
+        with patch.object(
+            dashboard_page.QDialog,
+            "exec",
+            return_value=QDialog.DialogCode.Accepted,
+        ), patch.object(
+            dashboard_page.QLineEdit,
+            "text",
+            return_value="Sierra Grammar School",
+        ):
+            page.edit_institution_name()
+        self.assertEqual(
+            page.welcome_title.text(),
+            "Welcome to Sierra Grammar School",
+        )
+
+        with patch.object(
+            dashboard_page.QDialog,
+            "exec",
+            return_value=QDialog.DialogCode.Rejected,
+        ):
+            page.edit_institution_name()
+        self.assertEqual(
+            page.welcome_title.text(),
+            "Welcome to Sierra Grammar School",
+        )
+
+        with patch.object(
+            dashboard_page.QDialog,
+            "exec",
+            return_value=QDialog.DialogCode.Accepted,
+        ), patch.object(
+            dashboard_page.QLineEdit,
+            "text",
+            return_value="",
+        ), patch.object(dashboard_page.QMessageBox, "warning") as warning:
+            page.edit_institution_name()
+        warning.assert_called_once()
+        self.assertEqual(
+            page.welcome_title.text(),
+            "Welcome to Sierra Grammar School",
+        )
+        page.close()
 
     def test_institution_admin_role_enables_administrator_capabilities(self):
         state = AppState.__new__(AppState)

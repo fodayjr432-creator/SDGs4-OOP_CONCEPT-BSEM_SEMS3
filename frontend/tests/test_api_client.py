@@ -69,6 +69,22 @@ class ApiClientTests(unittest.TestCase):
         self.assertEqual(result, {"detail": "created"})
         request.assert_called_once_with("POST", "/api/auth/register/", payload)
 
+    def test_institution_name_update_uses_existing_authentication_contract(self):
+        self.client.token = "session-token"
+        with patch.object(
+            self.client,
+            "request",
+            return_value={"institution": "Renamed University"},
+        ) as request:
+            result = self.client.update_institution_name("Renamed University")
+
+        self.assertEqual(result["institution"], "Renamed University")
+        request.assert_called_once_with(
+            "PATCH",
+            "/api/auth/institution/",
+            {"institution_name": "Renamed University"},
+        )
+
     def test_unauthorized_response_clears_session_token(self):
         self.client.token = "expired-token"
         with patch.object(

@@ -1,6 +1,6 @@
 # Screenshot Documentation
 
-This terminal-style screenshot was created from the verified output of the Digital Examination Results Management System application.
+This terminal-style screenshot was created from the verified output of the SDG 4 Quality Education application.
 
 ## File
 - terminal_output.svg

@@ -314,3 +314,95 @@ class InstitutionAccountApiTests(TestCase):
         user = get_user_model().objects.get(username="taylor-admin")
         self.assertTrue(user.check_password("Changed!Password2026"))
         self.assertFalse(Token.objects.filter(key=token_key).exists())
+
+    def test_institution_name_can_be_updated_by_administrator(self):
+        self.register_admin()
+        self.login_admin()
+
+        response = self.client.patch(
+            "/api/auth/institution/",
+            {"institution_name": "Renamed University"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["institution"], "Renamed University")
+        institution = Institution.objects.get(is_singleton=True)
+        self.assertEqual(institution.name, "Renamed University")
+        self.assertEqual(
+            self.client.get("/api/auth/me/").data["institution"],
+            "Renamed University",
+        )
+
+    def test_institution_name_update_rejects_empty_name(self):
+        self.register_admin()
+        self.login_admin()
+
+        response = self.client.patch(
+            "/api/auth/institution/",
+            {"institution_name": "   "},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            Institution.objects.get(is_singleton=True).name,
+            "Example University",
+        )
+
+    def test_malformed_academic_payloads_return_400(self):
+        self.register_admin()
+        self.login_admin()
+
+        programme = self.client.post(
+            "/api/programmes/",
+            {"programme_name": "Missing code"},
+            format="json",
+        )
+        self.assertEqual(programme.status_code, 400)
+
+        examination = self.client.post(
+            "/api/examinations/",
+            {"examination_title": "Missing fields"},
+            format="json",
+        )
+        self.assertEqual(examination.status_code, 400)
+
+        result = self.client.post(
+            "/api/results/",
+            {
+                "student_id": 1,
+                "examination_id": 1,
+                "score": "not-a-number",
+            },
+            format="json",
+        )
+        self.assertIn(result.status_code, {400, 404})
+
+    def test_staff_user_cannot_update_institution_name(self):
+        institution = Institution.objects.create(name="Staff Test Institution")
+        staff_user = get_user_model().objects.create_user(
+            username="teacher-user",
+            password="Secure!Password2026",
+        )
+        UserProfile.objects.create(
+            user=staff_user,
+            institution=institution,
+            administrator_name="Teacher User",
+            email="teacher@example.test",
+            role=UserProfile.Role.STAFF,
+        )
+        token = Token.objects.create(user=staff_user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        response = self.client.patch(
+            "/api/auth/institution/",
+            {"institution_name": "Unauthorized Rename"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            Institution.objects.get(is_singleton=True).name,
+            "Staff Test Institution",
+        )

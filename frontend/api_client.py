@@ -110,6 +110,13 @@ class ApiClient:
     def registration_status(self):
         return self.request("GET", "/api/auth/registration-status/")
 
+    def update_institution_name(self, institution_name):
+        return self.request(
+            "PATCH",
+            "/api/auth/institution/",
+            {"institution_name": institution_name},
+        )
+
     def logout(self):
         if self.token:
             try:
