@@ -109,7 +109,7 @@ python main.py --console
 
 Console records and catalogue files are separate from PostgreSQL and are not automatically imported into the database.
 
-## Tests
+## Tests.
 
 Run frontend tests from `frontend/`:
 
