@@ -67,7 +67,10 @@ class ModulesPage(QWidget):
         self.edit_button = QPushButton("Edit")
         self.edit_button.setObjectName("secondary")
         self.edit_button.clicked.connect(self.edit_module)
-        for button in (self.add_button, self.edit_button):
+        self.delete_button = QPushButton("Delete")
+        self.delete_button.setObjectName("danger")
+        self.delete_button.clicked.connect(self.delete_module)
+        for button in (self.add_button, self.edit_button, self.delete_button):
             button.setVisible(state.is_admin)
             toolbar.addWidget(button)
         layout.addLayout(toolbar)
@@ -143,4 +146,24 @@ class ModulesPage(QWidget):
             self.state.save_programmes()
             self.refresh()
         except (ValueError, StopIteration, ApiError) as error:
+            QMessageBox.critical(self, "Module", str(error))
+
+    def delete_module(self):
+        selected = self.selected_module()
+        if selected is None:
+            return
+        programme, module = selected
+        answer = QMessageBox.question(
+            self,
+            "Delete Module",
+            f"Delete module {module.code}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.state.delete_module(module.id)
+            QMessageBox.information(self, "Module", "Module deleted.")
+            self.refresh()
+        except ApiError as error:
             QMessageBox.critical(self, "Module", str(error))

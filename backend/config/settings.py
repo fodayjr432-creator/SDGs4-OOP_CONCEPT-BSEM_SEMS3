@@ -58,7 +58,7 @@ DATABASES = {
         "NAME": os.environ.get("PGDATABASE"),
         "USER": os.environ.get("PGUSER"),
         "PASSWORD": os.environ.get("PGPASSWORD"),
-        "HOST": os.environ.get("PGHOST", "localhost"),
+        "HOST": os.environ.get("PGHOST", "127.0.0.1"),
         "PORT": os.environ.get("PGPORT", "5432"),
         "CONN_MAX_AGE": 0,
         "OPTIONS": {
@@ -70,7 +70,7 @@ DATABASES = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
+        "apps.accounts.authentication.InstitutionTokenAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "apps.accounts.permissions.IsInstitutionAdministrator",

@@ -1,5 +1,7 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.db import IntegrityError, transaction
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import (
@@ -118,14 +120,25 @@ def login(request):
         return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
 
     user = authenticate(request, username=username, password=password)
-    if user is None or not UserProfile.objects.filter(
-        user_id=user.pk,
-        role=UserProfile.Role.INSTITUTION_ADMIN,
-    ).exists():
+    profile = (
+        UserProfile.objects.select_related("institution")
+        .filter(user_id=getattr(user, "pk", None))
+        .first()
+        if user is not None
+        else None
+    )
+    if user is None or not user.is_active or profile is None:
         return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
 
-    token, _ = Token.objects.get_or_create(user=user)
-    profile = user.account_profile
+    existing_token = Token.objects.filter(user=user).first()
+    token_max_age = timedelta(hours=12)
+    if (
+        existing_token is not None
+        and timezone.now() - existing_token.created > token_max_age
+    ):
+        existing_token.delete()
+        existing_token = None
+    token = existing_token or Token.objects.create(user=user)
     return Response(
         {
             "token": token.key,

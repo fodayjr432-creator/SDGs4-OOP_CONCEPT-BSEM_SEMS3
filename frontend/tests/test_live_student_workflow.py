@@ -76,6 +76,8 @@ class LiveStudentWorkflowTests(unittest.TestCase):
         state = AppState.__new__(AppState)
         state.api = self.api
         state.programmes = self.programmes
+        state.username = "live-admin"
+        state.account = {"username": "live-admin", "role": "institution_admin"}
         return state
 
     def wait_for(self, condition, timeout_ms=10000):

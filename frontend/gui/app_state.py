@@ -2,27 +2,27 @@ from api_client import ApiClient, ApiError
 from examination import Examination, Question
 from programme import Module, Programme
 from storage import InstitutionNameStore
+from urllib.parse import urlencode
 
 
 class AppState:
-    DEFAULT_INSTITUTION_NAME = "Scaling Grammar School"
-
     def __init__(self, username="Administrator", api_client=None, account=None):
         self.username = username
         self.account = account or {"username": username, "role": "admin"}
         self.institution_store = InstitutionNameStore()
-        default_institution_name = (
-            self.account.get("institution")
-            or self.DEFAULT_INSTITUTION_NAME
-        )
-        self.institution_name = self.institution_store.load(
-            default_institution_name
-        )
         self.api = api_client or ApiClient()
+        self.institution_name = (
+            self.account.get("institution")
+            or "Institution"
+        )
         self.programmes = []
         self.modules = []
         self.examinations = []
         self.academic_years = []
+        try:
+            self.load_institution_name()
+        except (ApiError, KeyError, TypeError, ValueError):
+            pass
         self.refresh_reference_data()
 
     @property
@@ -241,14 +241,47 @@ class AppState:
     def load_dashboard(self):
         return self.api.get("/api/dashboard/")
 
+    def load_institution_name(self):
+        response = self.api.get("/api/auth/me/")
+        if not isinstance(response, dict):
+            raise ApiError(
+                "The backend returned an invalid institution response."
+            )
+        name = response.get("institution")
+        if not isinstance(name, str) or not name.strip():
+            raise ApiError(
+                "The backend returned an invalid institution response."
+            )
+        name = name.strip()
+        self.institution_name = name
+        self.account["institution"] = name
+        try:
+            self.institution_store.save(name)
+        except OSError:
+            pass
+        return name
+
     def update_institution_name(self, institution_name):
         name = institution_name.strip()
         if not name:
             raise ValueError("Institution name is required.")
-        self.institution_store.save(name)
-        self.institution_name = name
-        self.account["institution"] = name
-        return name
+        response = self.api.update_institution_name(name)
+        saved_name = (
+            response.get("institution")
+            if isinstance(response, dict)
+            else None
+        )
+        if not saved_name:
+            raise ApiError(
+                "The backend returned an invalid institution response."
+            )
+        try:
+            self.institution_store.save(saved_name)
+        except OSError:
+            pass
+        self.institution_name = saved_name
+        self.account["institution"] = saved_name
+        return saved_name
 
     def _programme_id(self, code):
         programme = next(
@@ -394,6 +427,15 @@ class AppState:
 
     def save_examination_changes(self):
         self.save_examinations()
+
+    def delete_programme(self, programme_id):
+        self.api.delete(f"/api/programmes/{programme_id}/")
+
+    def delete_module(self, module_id):
+        self.api.delete(f"/api/modules/{module_id}/")
+
+    def delete_examination(self, examination_id):
+        self.api.delete(f"/api/examinations/{examination_id}/")
 
     def create_result(self, values):
         return self.api.post("/api/results/", values)

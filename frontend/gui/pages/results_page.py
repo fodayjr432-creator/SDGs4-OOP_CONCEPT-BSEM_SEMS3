@@ -47,7 +47,7 @@ class ResultDialog(QDialog):
         layout.addWidget(QLabel("Score"))
         self.score = QDoubleSpinBox()
         self.score.setDecimals(2)
-        self.score.setRange(0, 100)
+        self.score.setRange(0, 1000)
         if result:
             self.score.setValue(float(result["score"]))
         layout.addWidget(self.score)
@@ -86,7 +86,7 @@ class ResultDialog(QDialog):
             None,
         )
         if examination:
-            self.score.setMaximum(min(examination.total_marks, 100))
+            self.score.setMaximum(examination.total_marks)
 
 
 class ResultsPage(QWidget):
@@ -109,10 +109,10 @@ class ResultsPage(QWidget):
         self.delete_button.setObjectName("danger")
         self.delete_button.clicked.connect(self.delete_result)
         self.add_button.setVisible(
-            state.account.get("role") in {"admin", "institution_admin", "lecturer"}
+            state.account.get("role") in {"admin", "institution_admin", "lecturer", "staff"}
         )
         self.edit_button.setVisible(
-            state.account.get("role") in {"admin", "institution_admin", "lecturer"}
+            state.account.get("role") in {"admin", "institution_admin", "lecturer", "staff"}
         )
         self.delete_button.setVisible(state.is_admin)
         for button in (self.add_button, self.edit_button, self.delete_button):

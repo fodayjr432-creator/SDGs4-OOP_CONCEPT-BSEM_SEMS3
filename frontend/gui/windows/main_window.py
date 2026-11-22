@@ -62,6 +62,9 @@ class MainWindow(QMainWindow):
         for page in self.pages.values():
             self.stack.addWidget(page)
         self.pages["Dashboard"].action_requested.connect(self.navigate)
+        self.pages["Dashboard"].institution_name_changed.connect(
+            self.header.set_institution
+        )
 
         self.navigate("Dashboard")
 

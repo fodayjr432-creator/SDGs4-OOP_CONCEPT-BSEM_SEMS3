@@ -24,6 +24,54 @@ class StudentIntegrationTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def test_app_state_updates_institution_through_backend_api(self):
+        state = AppState.__new__(AppState)
+        state.api = Mock()
+        state.api.update_institution_name.return_value = {
+            "institution": "Sierra Grammar School"
+        }
+        state.account = {"institution": "Scaling Grammar School"}
+        state.institution_name = "Scaling Grammar School"
+        state.institution_store = Mock()
+
+        updated = state.update_institution_name("Sierra Grammar School")
+
+        state.api.update_institution_name.assert_called_once_with(
+            "Sierra Grammar School"
+        )
+        state.institution_store.save.assert_called_once_with(
+            "Sierra Grammar School"
+        )
+        self.assertEqual(updated, "Sierra Grammar School")
+        self.assertEqual(state.institution_name, "Sierra Grammar School")
+        self.assertEqual(
+            state.account["institution"],
+            "Sierra Grammar School",
+        )
+
+    def test_app_state_loads_institution_from_backend_not_json(self):
+        state = AppState.__new__(AppState)
+        state.api = Mock()
+        state.api.get.return_value = {
+            "institution": "Limkokwing University"
+        }
+        state.account = {"institution": "Scaling Grammar School"}
+        state.institution_name = "Scaling Grammar School"
+        state.institution_store = Mock()
+
+        loaded = state.load_institution_name()
+
+        state.api.get.assert_called_once_with("/api/auth/me/")
+        state.institution_store.save.assert_called_once_with(
+            "Limkokwing University"
+        )
+        self.assertEqual(loaded, "Limkokwing University")
+        self.assertEqual(state.institution_name, "Limkokwing University")
+        self.assertEqual(
+            state.account["institution"],
+            "Limkokwing University",
+        )
+
     def test_institution_name_store_persists_separate_from_student_data(self):
         with tempfile.TemporaryDirectory() as directory:
             settings_path = os.path.join(directory, "institution_settings.json")
@@ -133,14 +181,14 @@ class StudentIntegrationTests(unittest.TestCase):
         self.assertFalse(page.edit_button.isHidden())
         self.assertFalse(page.delete_button.isHidden())
 
-    def test_staff_role_hides_result_management_controls(self):
+    def test_staff_role_allows_result_create_and_edit_but_hides_delete(self):
         state = AppState.__new__(AppState)
         state.account = {"username": "teacher", "role": "staff"}
         state.load_results = lambda: []
         page = ResultsPage(state)
 
-        self.assertTrue(page.add_button.isHidden())
-        self.assertTrue(page.edit_button.isHidden())
+        self.assertFalse(page.add_button.isHidden())
+        self.assertFalse(page.edit_button.isHidden())
         self.assertTrue(page.delete_button.isHidden())
 
     def test_load_reports_extracts_student_rows_from_summary_response(self):

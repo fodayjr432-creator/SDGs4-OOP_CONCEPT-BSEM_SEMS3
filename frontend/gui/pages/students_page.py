@@ -138,6 +138,11 @@ class StudentsPage(QWidget):
         self.delete_button = QPushButton("Delete")
         self.delete_button.setObjectName("danger")
         self.delete_button.clicked.connect(self.delete_student)
+        can_delete = state.account.get("role") in {
+            "admin",
+            "institution_admin",
+        }
+        self.delete_button.setVisible(can_delete)
         for button in (self.add_button, self.edit_button, self.delete_button):
             toolbar.addWidget(button)
         layout.addLayout(toolbar)

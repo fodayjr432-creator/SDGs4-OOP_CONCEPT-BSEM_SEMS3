@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import QMessageBox
 
 class DashboardPage(QWidget):
     action_requested = pyqtSignal(str)
+    institution_name_changed = pyqtSignal(str)
 
     def __init__(self, state):
         super().__init__()
@@ -212,7 +213,8 @@ class DashboardPage(QWidget):
                 institution_name
             )
             self.welcome_title.setText(f"Welcome to {updated_name}")
-        except (OSError, ValueError) as error:
+            self.institution_name_changed.emit(updated_name)
+        except (ApiError, OSError, ValueError) as error:
             QMessageBox.critical(self, "Institution", str(error))
 
     @staticmethod

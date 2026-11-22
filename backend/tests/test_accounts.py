@@ -1,10 +1,12 @@
 from io import StringIO
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
@@ -197,7 +199,7 @@ class InstitutionAccountApiTests(TestCase):
         self.assertEqual(dashboard.status_code, 403)
         self.assertEqual(administrators.status_code, 403)
 
-    def test_staff_user_cannot_login_or_access_admin_apis(self):
+    def test_staff_user_can_login_but_cannot_access_admin_apis(self):
         institution = Institution.objects.create(name="Staff Test Institution")
         staff_user = get_user_model().objects.create_user(
             username="teacher-user",
@@ -216,12 +218,46 @@ class InstitutionAccountApiTests(TestCase):
             {"username": "teacher-user", "password": "Secure!Password2026"},
             format="json",
         )
-        self.assertEqual(login.status_code, 401)
+        self.assertEqual(login.status_code, 200, login.data)
+        self.assertEqual(login.data["role"], UserProfile.Role.STAFF)
+        self.assertIn("token", login.data)
 
-        token = Token.objects.create(user=staff_user)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
-        self.assertEqual(self.client.get("/api/dashboard/").status_code, 403)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {login.data['token']}"
+        )
+        report = {
+            "total_students": 0,
+            "total_programmes": 0,
+            "total_modules": 0,
+            "total_examinations": 0,
+            "total_results": 0,
+        }
+        with patch(
+            "config.views._report_data",
+            return_value=report,
+        ), patch(
+            "config.views._recent_dashboard_results",
+            return_value=[],
+        ):
+            self.assertEqual(
+                self.client.get("/api/dashboard/").status_code,
+                200,
+            )
         self.assertEqual(self.client.get("/api/auth/admins/").status_code, 403)
+        student_delete = self.client.delete("/api/students/999/")
+        self.assertEqual(student_delete.status_code, 403)
+
+    def test_expired_token_is_rejected_and_removed(self):
+        self.register_admin()
+        login = self.login_admin()
+        token = Token.objects.get(key=login.data["token"])
+        token.created = timezone.now() - timedelta(hours=13)
+        token.save(update_fields=["created"])
+
+        response = self.client.get("/api/auth/me/")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(Token.objects.filter(key=login.data["token"]).exists())
 
     def test_token_authentication_dashboard_and_logout_invalidation(self):
         self.register_admin()

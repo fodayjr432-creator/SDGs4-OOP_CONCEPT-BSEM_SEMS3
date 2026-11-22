@@ -143,7 +143,15 @@ class ExaminationsPage(QWidget):
         self.questions_button = QPushButton("Add Question")
         self.questions_button.setObjectName("secondary")
         self.questions_button.clicked.connect(self.add_question)
-        for button in (self.add_button, self.edit_button, self.questions_button):
+        self.delete_button = QPushButton("Delete")
+        self.delete_button.setObjectName("danger")
+        self.delete_button.clicked.connect(self.delete_examination)
+        for button in (
+            self.add_button,
+            self.edit_button,
+            self.questions_button,
+            self.delete_button,
+        ):
             button.setVisible(state.is_admin)
             toolbar.addWidget(button)
         layout.addLayout(toolbar)
@@ -273,3 +281,26 @@ class ExaminationsPage(QWidget):
             )
         except (ApiError, ValueError) as error:
             QMessageBox.critical(self, "Question", str(error))
+
+    def delete_examination(self):
+        examination = self.selected_examination()
+        if examination is None:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Delete Examination",
+            f"Delete examination {examination.exam_id}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.state.delete_examination(examination.id)
+            QMessageBox.information(
+                self,
+                "Examination",
+                "Examination deleted.",
+            )
+            self.refresh()
+        except ApiError as error:
+            QMessageBox.critical(self, "Examination", str(error))

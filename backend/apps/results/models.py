@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Now
 
+from apps.core.fields import UTCNaiveDateTimeField
 from apps.examinations.models import Examination
 from apps.students.models import Student
 
@@ -30,8 +31,8 @@ class ExamResult(models.Model):
     score = models.DecimalField(max_digits=6, decimal_places=2)
     grade = models.CharField(max_length=1, choices=Grade.choices, default=Grade.F)
     remarks = models.TextField(null=True, blank=True)
-    date_recorded = models.DateTimeField(db_default=Now())
-    last_updated = models.DateTimeField(db_default=Now())
+    date_recorded = UTCNaiveDateTimeField(db_default=Now())
+    last_updated = UTCNaiveDateTimeField(db_default=Now())
 
     class Meta:
         managed = False
@@ -55,7 +56,7 @@ class ResultAudit(models.Model):
     action_type = models.CharField(max_length=10, choices=ActionType.choices)
     old_record = models.JSONField(null=True, blank=True)
     new_record = models.JSONField(null=True, blank=True)
-    action_time = models.DateTimeField(db_default=Now())
+    action_time = UTCNaiveDateTimeField(db_default=Now())
     database_user = models.TextField(db_default=RawSQL("CURRENT_USER", []))
 
     class Meta:

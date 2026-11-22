@@ -5,6 +5,9 @@ It maps the existing PostgreSQL academic tables with unmanaged ORM models and
 uses Django's built-in `User` model plus DRF token authentication for
 institution administrator accounts.
 
+API endpoint details are documented in
+[API_DOCUMENTATION.md](API_DOCUMENTATION.md).
+
 ## Database and migrations
 
 The existing PostgreSQL database is authoritative. Academic tables,
@@ -14,10 +17,18 @@ models have `managed = False`.
 
 The accounts migration adds only `accounts_institution` and
 `accounts_userprofile`. Django's standard auth, content-types, and DRF token
-migrations may also be required. No migration was run against the configured
-PostgreSQL database as part of this implementation.
+migrations create the authentication/support tables. The configured database
+initially had no Django migration history or authentication tables; the
+reviewed standard migrations were applied normally. Academic tables remain
+unmanaged and were not created, altered, or baselined.
 
-Before any migration against an existing database:
+The actual local PostgreSQL database name is
+`CREATE DATABASE Digital_Examination_Results_db;` (including the SQL words
+and semicolon). Django is configured with that exact existing name. It was
+not renamed; set `PGDATABASE` to the actual catalog name if it is renamed
+later.
+
+Before any future migration against an existing database:
 
 1. Make an approved database backup.
 2. From this directory, inspect `python manage.py showmigrations` and
@@ -26,6 +37,9 @@ Before any migration against an existing database:
    review the planned changes. Apply only the reviewed migrations with
    approval. Do not create a replacement database or mark migrations applied
    without verifying the actual schema.
+
+Do not use `--fake-initial` for the academic tables: their models have
+`managed = False` and no Django migration owns them.
 
 For isolated automated tests use `config.test_settings`; it uses in-memory
 SQLite and does not connect to PostgreSQL:
@@ -37,9 +51,9 @@ python manage.py test --settings=config.test_settings
 ## Configuration and startup
 
 Create `.env` from `.env.example` and privately configure `DJANGO_SECRET_KEY`
-and the existing PostgreSQL connection values (`PGHOST`, `PGPORT`,
-`PGDATABASE`, `PGUSER`, `PGPASSWORD`). Do not commit the file or send its
-values in logs or support requests.
+and the PostgreSQL connection values (`PGHOST`, `PGPORT`, `PGDATABASE`,
+`PGUSER`, `PGPASSWORD`). Do not commit the file or send its values in logs or
+support requests. The root `.gitignore` excludes `backend/.env`.
 
 Install dependencies and check the backend:
 

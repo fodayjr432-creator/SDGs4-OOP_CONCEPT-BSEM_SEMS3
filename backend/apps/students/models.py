@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models.functions import Now
 
 from apps.academics.models import Programme
+from apps.core.fields import UTCNaiveDateTimeField
 
 
 class Student(models.Model):
@@ -27,7 +28,7 @@ class Student(models.Model):
         related_name="students",
         on_delete=models.DO_NOTHING,
     )
-    date_registered = models.DateTimeField(db_default=Now())
+    date_registered = UTCNaiveDateTimeField(db_default=Now())
     is_active = models.BooleanField(default=True)
 
     class Meta:

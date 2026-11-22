@@ -50,7 +50,10 @@ class ProgrammesPage(QWidget):
         self.edit_button = QPushButton("Edit")
         self.edit_button.setObjectName("secondary")
         self.edit_button.clicked.connect(self.edit_programme)
-        for button in (self.add_button, self.edit_button):
+        self.delete_button = QPushButton("Delete")
+        self.delete_button.setObjectName("danger")
+        self.delete_button.clicked.connect(self.delete_programme)
+        for button in (self.add_button, self.edit_button, self.delete_button):
             button.setVisible(state.is_admin)
             toolbar.addWidget(button)
         layout.addLayout(toolbar)
@@ -119,4 +122,23 @@ class ProgrammesPage(QWidget):
             QMessageBox.information(self, "Programme", "Programme updated.")
             self.refresh()
         except (ValueError, ApiError) as error:
+            QMessageBox.critical(self, "Programme", str(error))
+
+    def delete_programme(self):
+        programme = self.selected_programme()
+        if programme is None:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Delete Programme",
+            f"Delete programme {programme.code}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.state.delete_programme(programme.id)
+            QMessageBox.information(self, "Programme", "Programme deleted.")
+            self.refresh()
+        except ApiError as error:
             QMessageBox.critical(self, "Programme", str(error))
