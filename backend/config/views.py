@@ -680,7 +680,7 @@ def result_detail(request, result_id):
             if score < 0 or score > r.examination.maximum_score:
                 return Response({"error": "Invalid score"}, status=400)
             r.score = score
-            r.grade = calculate_grade(score)
+            r.grade = calculate_grade(score, r.examination.maximum_score)
         if "remarks" in data:
             r.remarks = data["remarks"]
         try:

@@ -13,12 +13,14 @@ class ApiError(Exception):
 
 
 class ApiClient:
-    def __init__(self, base_url=None, timeout=5):
+    DEFAULT_TIMEOUT = 10
+
+    def __init__(self, base_url=None, timeout=None):
         configured_url = base_url or os.environ.get(
             "EXAM_API_URL", "http://127.0.0.1:8000"
         )
         self.base_url = configured_url.rstrip("/")
-        self.timeout = timeout
+        self.timeout = timeout or int(os.environ.get("EXAM_API_TIMEOUT", self.DEFAULT_TIMEOUT))
         self.token = None
         self._session = requests.Session()
 

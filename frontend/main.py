@@ -2,7 +2,7 @@ import math
 
 from student import Student
 from exam_result import ExamResult
-from programme import Programme
+from programme import Programme, Module
 from storage import RecordStore
 
 
@@ -18,7 +18,6 @@ def build_programme_catalogue():
         ("ES", "Embedded Systems", "3", "1"),
         ("VLSI", "VLSI Design", "3", "2"),
     ]:
-        from programme import Module
         ce.add_module(Module(code, name, lvl, sem))
 
     bict = Programme("BICT", "BSc Information and Communication Technology")
@@ -31,7 +30,6 @@ def build_programme_catalogue():
         ("SAD", "Systems Analysis and Design", "2", "2"),
         ("IS", "Information Security", "3", "2"),
     ]:
-        from programme import Module
         bict.add_module(Module(code, name, lvl, sem))
 
     bse = Programme("BSE", "BSc Software Engineering")
@@ -44,7 +42,6 @@ def build_programme_catalogue():
         ("WAD", "Web Application Development", "3", "2"),
         ("ST", "Software Testing", "3", "2"),
     ]:
-        from programme import Module
         bse.add_module(Module(code, name, lvl, sem))
 
     return [ce, bict, bse]
