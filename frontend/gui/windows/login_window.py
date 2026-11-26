@@ -358,11 +358,13 @@ class LoginWindow(QWidget):
         self.account = None
         self._worker = None
         self._authentication_available = False
-        self._refresh_styles()
+        self._apply_styles()
+        self._build_ui()
 
-    def _refresh_styles(self):
+    def _apply_styles(self):
         self.setStyleSheet(_LOGIN_QSS)
 
+    def _build_ui(self):
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)

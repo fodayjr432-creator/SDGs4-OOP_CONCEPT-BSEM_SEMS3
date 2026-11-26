@@ -1,5 +1,5 @@
-from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import pyqtSignal, QRect, Qt
+from PyQt6.QtGui import QColor, QFontMetrics, QPainter
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSizePolicy,
+    QStyle,
     QStyledItemDelegate,
     QTableWidgetItem,
     QVBoxLayout,
@@ -46,42 +47,32 @@ COUNT_KEYS = {
     "Results Recorded": "results",
 }
 
-FALLBACK_COUNTS = {
-    "Total Students": 8,
-    "Total Programmes": 3,
-    "Total Modules": 14,
-    "Total Examinations": 3,
-    "Results Recorded": 7,
-}
-
-FALLBACK_RESULTS = [
-    ("Foday Kamara Jr", "BSE", "90.0", "A"),
-    ("Alice Mensah", "CE", "82.5", "B"),
-    ("Kwame Osei", "BICT", "74.0", "B"),
-    ("Zainab Kamara", "BSE", "68.0", "C"),
-    ("David Conteh", "CE", "91.5", "A"),
-]
-
-
 class GradeDelegate(QStyledItemDelegate):
     """Renders the Overall Grade column as a themed pill."""
 
     def paint(self, painter, option, index):
+        text = str(index.data() or "").strip()
+        if not text:
+            return
         painter.save()
         painter.setRenderHint(painter.RenderHint.Antialiasing)
         p = palette()
-        rect = option.rect.adjusted(6, 6, -6, -6)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(p["tint_bg"]))
-        painter.drawRoundedRect(rect, 10, 10)
-        pen = painter.pen()
-        pen.setColor(QColor(p["tint_text"]))
-        painter.setPen(pen)
         font = painter.font()
-        font.setPointSize(11)
-        font.setWeight(700)
+        font.setBold(True)
+        font.setPointSize(10)
         painter.setFont(font)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(index.data() or ""))
+        pill_width = max(44, QFontMetrics(font).horizontalAdvance(text) + 24)
+        pill_height = 24
+        pill = QRect(0, 0, pill_width, pill_height)
+        pill.moveCenter(option.rect.center())
+        painter.setPen(Qt.PenStyle.NoPen)
+        selected = bool(option.state & QStyle.StateFlag.State_Selected)
+        pill_bg = p["primary"] if selected else p["tint_bg"]
+        text_color = "#FFFFFF" if selected else p["tint_text"]
+        painter.setBrush(QColor(pill_bg))
+        painter.drawRoundedRect(pill, 12, 12)
+        painter.setPen(QColor(text_color))
+        painter.drawText(pill, Qt.AlignmentFlag.AlignCenter, text)
         painter.restore()
 
 
@@ -128,7 +119,7 @@ class DashboardPage(QWidget):
 
         text_layout = QVBoxLayout()
         text_layout.setSpacing(3)
-        institution_name = getattr(self.state, "institution_name", "Limkokwing University")
+        institution_name = self.state.institution_name
         self.welcome_title = QLabel(f"Welcome to {institution_name}")
         self.welcome_title.setObjectName("dashboardWelcome")
         self.welcome_title.setTextInteractionFlags(
@@ -159,11 +150,11 @@ class DashboardPage(QWidget):
         quick_layout.setContentsMargins(16, 12, 16, 12)
         quick_layout.setSpacing(10)
 
-        quick_heading = QLabel("Quick Actions")
-        quick_heading.setStyleSheet(
+        self.quick_heading = QLabel("Quick Actions")
+        self.quick_heading.setStyleSheet(
             f"font-size: 16px; font-weight: 800; color: {palette()['text']};"
         )
-        quick_layout.addWidget(quick_heading)
+        quick_layout.addWidget(self.quick_heading)
 
         quick_buttons = QHBoxLayout()
         quick_buttons.setSpacing(10)
@@ -191,11 +182,21 @@ class DashboardPage(QWidget):
         recent_layout.setContentsMargins(16, 12, 16, 12)
         recent_layout.setSpacing(8)
 
-        label = QLabel("Recent Examination Results")
-        label.setStyleSheet(
+        header_layout = QHBoxLayout()
+        self.results_heading = QLabel("Recent Examination Results")
+        self.results_heading.setStyleSheet(
             f"font-size: 16px; font-weight: 800; color: {palette()['text']};"
         )
-        recent_layout.addWidget(label)
+        header_layout.addWidget(self.results_heading)
+        header_layout.addStretch()
+        self.retry_button = QPushButton("Retry")
+        self.retry_button.setObjectName("secondary")
+        self.retry_button.setMinimumHeight(32)
+        self.retry_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.retry_button.clicked.connect(self.refresh)
+        self.retry_button.hide()
+        header_layout.addWidget(self.retry_button)
+        recent_layout.addLayout(header_layout)
 
         self.table = DataTable(("Student", "Programme", "Average", "Overall Grade"))
         self.table.setMinimumHeight(180)
@@ -219,6 +220,11 @@ class DashboardPage(QWidget):
         self.welcome_title.setStyleSheet(
             f"font-size: 20px; font-weight: 800; color: {p['text']};"
         )
+        heading_style = (
+            f"font-size: 16px; font-weight: 800; color: {p['text']};"
+        )
+        self.quick_heading.setStyleSheet(heading_style)
+        self.results_heading.setStyleSheet(heading_style)
         self.table.viewport().update()
 
     # ------------------------------------------------------------------ data
@@ -240,16 +246,31 @@ class DashboardPage(QWidget):
                 )
                 for result in (data.get("recent_results") or [])
             ]
-        except Exception:
-            values = dict(FALLBACK_COUNTS)
-            rows = [tuple(row) for row in FALLBACK_RESULTS]
+        except ApiError as error:
+            values = {title: "0" for title in TITLES}
+            rows = []
+            self.retry_button.show()
+            self.table.clearSpans()
+            self.table.populate([])
+            self.table.setRowCount(1)
+            p = palette()
+            error_item = QTableWidgetItem(
+                "Couldn't load dashboard data. Check your connection and try again."
+            )
+            error_item.setForeground(QColor(p["muted"]))
+            error_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+            )
+            self.table.setItem(0, 0, error_item)
+            self.table.setSpan(0, 0, 1, 4)
+            for title, value in values.items():
+                self.card_labels[title].set_value(value)
+            return
 
         for title, value in values.items():
             self.card_labels[title].set_value(value)
 
-        for row_index in range(self.table.rowCount()):
-            self.table.setCellWidget(row_index, 3, None)
-
+        self.retry_button.hide()
         self.table.clearSpans()
         self.table.populate(rows)
         if not rows:

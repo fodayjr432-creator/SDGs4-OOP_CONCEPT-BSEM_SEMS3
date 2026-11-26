@@ -25,6 +25,8 @@ LIGHT = {
     "border": "#E5EAF2",
     "sidebar_bg": "#FFFFFF",
     "sidebar_text": "#64748B",
+    "sidebar_hover_bg": "#F1F5F9",
+    "sidebar_hover_text": "#172033",
     "sidebar_active_bg": "#2563EB",
     "sidebar_active_text": "#FFFFFF",
     "brand_panel_bg": "#F5F7FB",
@@ -46,6 +48,8 @@ def _derive(base, overrides):
 DARK_SIDEBAR = _derive(LIGHT, {
     "sidebar_bg": "#0F172A",
     "sidebar_text": "#94A3B8",
+    "sidebar_hover_bg": "#1E293B",
+    "sidebar_hover_text": "#F1F5F9",
     "brand_panel_bg": "#0F172A",
     "brand_text": "#F8FAFC",
     "brand_muted": "#94A3B8",
@@ -56,6 +60,8 @@ EMERALD = _derive(LIGHT, {
     "primary_hover": "#115E59",
     "bg": "#F3F8F7",
     "brand_panel_bg": "#E6F4F1",
+    "sidebar_hover_bg": "#E6F4F1",
+    "sidebar_hover_text": "#134E4A",
     "tint_bg": "#CCFBF1",
     "tint_text": "#134E4A",
 })
@@ -69,6 +75,8 @@ NIGHT = _derive(LIGHT, {
     "border": "#1F2937",
     "sidebar_bg": "#0F172A",
     "sidebar_text": "#94A3B8",
+    "sidebar_hover_bg": "#1E293B",
+    "sidebar_hover_text": "#F1F5F9",
     "brand_panel_bg": "#0B1220",
     "brand_text": "#F1F5F9",
     "brand_muted": "#94A3B8",
@@ -106,6 +114,7 @@ def build_qss(name=_DEFAULT_THEME) -> str:
 * {{
     font-family: "Segoe UI";
     font-size: 14px;
+    color: {p['text']};
 }}
 QWidget#root {{
     background: {p['bg']};
@@ -169,6 +178,7 @@ QFrame#card {{
 }}
 QTableWidget {{
     background: {p['card']};
+    color: {p['text']};
     border: 1px solid {p['border']};
     border-radius: 8px;
     gridline-color: {p['border']};

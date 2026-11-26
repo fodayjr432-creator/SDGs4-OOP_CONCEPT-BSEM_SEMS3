@@ -1,13 +1,14 @@
-from pathlib import Path
-
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
-from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from gui.styles.theme import palette, theme_signal
-
-ICONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
+from gui.components.icons import tinted_pixmap
 
 ICON_MAP = {
     "Dashboard": "layout-dashboard",
@@ -33,19 +34,6 @@ BUTTON_LABELS = (
 )
 
 
-def _tint_icon(icon_name, color):
-    path = ICONS_DIR / f"{icon_name}.svg"
-    renderer = QSvgRenderer(str(path))
-    pixmap = QPixmap(24, 24)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    renderer.render(painter)
-    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
-    painter.fillRect(pixmap.rect(), QColor(color))
-    painter.end()
-    return QIcon(pixmap)
-
-
 def _sidebar_qss(p):
     return f"""
 QWidget#sidebar {{
@@ -68,8 +56,8 @@ QWidget#sidebar QPushButton {{
     font-size: 13px;
 }}
 QWidget#sidebar QPushButton:hover {{
-    background: {p['tint_bg']};
-    color: {p['text']};
+    background: {p['sidebar_hover_bg']};
+    color: {p['sidebar_hover_text']};
 }}
 QWidget#sidebar QPushButton[active="true"] {{
     background: {p['sidebar_active_bg']};
@@ -81,6 +69,78 @@ QWidget#sidebar QPushButton[active="true"]:hover {{
 """
 
 
+class NavButton(QPushButton):
+    def __init__(self, label, icon_name, parent=None):
+        super().__init__(parent)
+        self.icon_name = icon_name
+        self._state = "normal"
+        self.setFixedHeight(44)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAccessibleName(label)
+        self.setToolTip(label)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(14, 0, 14, 0)
+        layout.setSpacing(12)
+
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(20, 20)
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.icon_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+            True,
+        )
+
+        self.text_label = QLabel(label)
+        self.text_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.text_label.setStyleSheet(
+            "background: transparent; border: none; "
+            "font-size: 13px; font-weight: 600;"
+        )
+        self.text_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+            True,
+        )
+
+        layout.addWidget(self.icon_label)
+        layout.addWidget(self.text_label, 1)
+        self.set_state("normal")
+
+    def set_state(self, state):
+        if state not in {"normal", "hover", "active"}:
+            state = "normal"
+        self._state = state
+        p = palette()
+        if state == "active":
+            icon_color = p["sidebar_active_text"]
+            text_color = p["sidebar_active_text"]
+        elif state == "hover":
+            icon_color = p["sidebar_hover_text"]
+            text_color = p["sidebar_hover_text"]
+        else:
+            icon_color = p["sidebar_text"]
+            text_color = p["sidebar_text"]
+        self.icon_label.setPixmap(tinted_pixmap(self.icon_name, icon_color, 20))
+        self.text_label.setStyleSheet(
+            "background: transparent; border: none; "
+            f"color: {text_color}; font-size: 13px; font-weight: 600;"
+        )
+
+    def enterEvent(self, event):
+        if self.property("active") != "true":
+            self.set_state("hover")
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        if self.property("active") == "true":
+            self.set_state("active")
+        else:
+            self.set_state("normal")
+        super().leaveEvent(event)
+
+
 class Sidebar(QWidget):
     page_requested = pyqtSignal(str)
     logout_requested = pyqtSignal()
@@ -89,7 +149,6 @@ class Sidebar(QWidget):
         super().__init__(parent)
         self.setObjectName("sidebar")
         self.setFixedWidth(220)
-        self._icon_paths = {}
         theme_signal.changed.connect(self._refresh_styles)
 
         layout = QVBoxLayout(self)
@@ -105,18 +164,13 @@ class Sidebar(QWidget):
 
         self.buttons = {}
         for label in BUTTON_LABELS:
-            button = QPushButton(label)
-            button.setCursor(self.cursor())
+            button = NavButton(label, ICON_MAP[label])
             button.clicked.connect(lambda _, name=label: self.select(name))
-            icon_name = ICON_MAP[label]
-            self._set_button_icon(button, icon_name, False)
             layout.addWidget(button)
             self.buttons[label] = button
 
         layout.addStretch()
-        self.logout_button = QPushButton("Logout")
-        self._set_button_icon(self.logout_button, "logout", False)
-        self.logout_button.setCursor(self.cursor())
+        self.logout_button = NavButton("Logout", "logout")
         self.logout_button.clicked.connect(self.logout_requested.emit)
         layout.addWidget(self.logout_button)
         self._refresh_styles()
@@ -131,23 +185,15 @@ class Sidebar(QWidget):
             "Dashboard",
         )
         for label, button in self.buttons.items():
-            self._set_button_icon(button, ICON_MAP[label], label == active)
-        self._set_button_icon(
-            self.logout_button, "logout", self.logout_button.property("active") == "true"
-        )
-
-    def _set_button_icon(self, button, icon_name, active):
-        p = palette()
-        color = p["sidebar_active_text"] if active else p["sidebar_text"]
-        button.setIcon(_tint_icon(icon_name, color))
-        button.setIconSize(QSize(20, 20))
-        self._icon_paths[button] = icon_name
+            button.set_state("active" if label == active else "normal")
+        logout_active = self.logout_button.property("active") == "true"
+        self.logout_button.set_state("active" if logout_active else "normal")
 
     def select(self, name):
         for label, button in self.buttons.items():
             active = label == name
             button.setProperty("active", "true" if active else "false")
-            self._set_button_icon(button, ICON_MAP[label], active)
+            button.set_state("active" if active else "normal")
             button.style().unpolish(button)
             button.style().polish(button)
         self.page_requested.emit(name)

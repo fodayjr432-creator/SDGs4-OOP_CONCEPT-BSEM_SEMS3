@@ -23,6 +23,10 @@ QLabel#muted {{
     color: {p['muted']};
     font-size: 13px;
 }}
+QLabel#institutionLabel {{
+    color: {p['muted']};
+    font-size: 13px;
+}}
 QLabel#userBadge {{
     color: {p['text']};
     font-size: 13px;

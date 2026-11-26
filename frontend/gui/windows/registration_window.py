@@ -1,4 +1,3 @@
-from gui.theme.theme_manager import ThemeManager
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
@@ -11,6 +10,7 @@ from PyQt6.QtWidgets import (
 
 from api_client import ApiClient, ApiError
 from gui.api_worker import ApiWorker
+from gui.styles.theme import palette, theme_signal
 
 
 def _registration_qss(p):
@@ -30,35 +30,35 @@ QLabel#registrationDescription, QLabel#registrationStatus {{
     color: {p['muted']};
     font-size: 13px;
 }}
-QLabel#registrationStatus[feedback="error"] {{ color: {p['error']}; }}
+QLabel#registrationStatus[feedback="error"] {{ color: {p['danger']}; }}
 QLabel#registrationStatus[feedback="success"] {{ color: {p['success']}; }}
 QLineEdit {{
-    background: {p['surface']};
+    background: {p['bg']};
     border: 1px solid {p['border']};
     border-radius: 7px;
     color: {p['text']};
     min-height: 36px;
     padding: 0 9px;
 }}
-QLineEdit:focus {{ border: 2px solid {p['accent']}; }}
+QLineEdit:focus {{ border: 2px solid {p['primary']}; }}
 QPushButton#registerSubmit {{
-    background: {p['accent']};
+    background: {p['primary']};
     border: none;
     border-radius: 7px;
     color: #FFFFFF;
     font-weight: 600;
     min-height: 42px;
 }}
-QPushButton#registerSubmit:hover {{ background: {p['accent_hover']}; }}
+QPushButton#registerSubmit:hover {{ background: {p['primary_hover']}; }}
 QPushButton#registerSubmit:disabled {{ background: {p['muted']}; }}
 QPushButton#registerCancel {{
-    background: {p['surface']};
+    background: {p['bg']};
     border: 1px solid {p['border']};
     border-radius: 7px;
     color: {p['text']};
     min-height: 40px;
 }}
-QPushButton#registerCancel:hover {{ background: {p['accent_hover']}; color: #FFFFFF; }}
+QPushButton#registerCancel:hover {{ background: {p['primary_hover']}; color: #FFFFFF; }}
 """
 
 
@@ -74,11 +74,13 @@ class RegistrationWindow(QDialog):
         self.setWindowTitle("First-time institution setup")
         self.setMinimumWidth(480)
         self._refresh_styles()
-        ThemeManager.instance().style_changed.connect(self._refresh_styles)
+        theme_signal.changed.connect(self._refresh_styles)
+        self._build_ui()
 
     def _refresh_styles(self):
-        self.setStyleSheet(_registration_qss(ThemeManager.instance().palette()))
+        self.setStyleSheet(_registration_qss(palette()))
 
+    def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 26, 30, 24)
         layout.setSpacing(12)
