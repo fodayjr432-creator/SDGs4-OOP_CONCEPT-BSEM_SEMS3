@@ -23,6 +23,7 @@ from .serializers import (
     serialize_administrator,
 )
 from .throttles import LoginRateThrottle, RegistrationRateThrottle
+from apps.audit.models import AuditEvent, UserSession
 
 
 def _create_administrator(validated_data, institution):
@@ -127,7 +128,19 @@ def login(request):
         if user is not None
         else None
     )
+    ip = request.META.get("REMOTE_ADDR")
     if user is None or not user.is_active or profile is None:
+        AuditEvent.objects.create(
+            user=None,
+            username=username if isinstance(username, str) else "",
+            user_role="",
+            event_type=AuditEvent.EventType.LOGIN_FAILED,
+            action="Failed login attempt",
+            http_method=request.method,
+            endpoint=request.path,
+            ip_address=ip,
+            success=False,
+        )
         return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
 
     existing_token = Token.objects.filter(user=user).first()
@@ -139,6 +152,25 @@ def login(request):
         existing_token.delete()
         existing_token = None
     token = existing_token or Token.objects.create(user=user)
+    AuditEvent.objects.create(
+        user=user,
+        username=user.get_username(),
+        user_role=profile.role,
+        event_type=AuditEvent.EventType.LOGIN_SUCCESS,
+        action="User logged in",
+        http_method=request.method,
+        endpoint=request.path,
+        ip_address=ip,
+        success=True,
+    )
+    UserSession.objects.create(
+        user=user,
+        username=user.get_username(),
+        login_at=timezone.now(),
+        status=UserSession.Status.ACTIVE,
+        ip_address=ip,
+        last_activity_at=timezone.now(),
+    )
     return Response(
         {
             "token": token.key,
@@ -154,6 +186,22 @@ def login(request):
 @permission_classes([IsAuthenticated])
 def logout(request):
     Token.objects.filter(user=request.user).delete()
+    session = UserSession.objects.filter(user=request.user, status=UserSession.Status.ACTIVE).order_by("-login_at").first()
+    if session is not None:
+        session.logout_at = timezone.now()
+        session.last_activity_at = timezone.now()
+        session.save()
+    AuditEvent.objects.create(
+        user=request.user,
+        username=request.user.get_username(),
+        user_role=getattr(getattr(request.user, "account_profile", None), "role", ""),
+        event_type=AuditEvent.EventType.LOGOUT,
+        action="User logged out",
+        http_method=request.method,
+        endpoint=request.path,
+        ip_address=request.META.get("REMOTE_ADDR"),
+        success=True,
+    )
     return Response({"detail": "Logged out."})
 
 

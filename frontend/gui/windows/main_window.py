@@ -22,6 +22,7 @@ class MainWindow(QMainWindow):
         root_layout.setSpacing(0)
 
         self.sidebar = Sidebar()
+        self.sidebar.setObjectName("sidebar")
         root_layout.addWidget(self.sidebar)
 
         content = QWidget()
@@ -32,6 +33,7 @@ class MainWindow(QMainWindow):
             state.username,
             state.account.get("institution"),
         )
+        self.header.setObjectName("header")
         content_layout.addWidget(self.header)
 
         self.stack = QStackedWidget()
@@ -49,6 +51,7 @@ class MainWindow(QMainWindow):
         from gui.pages.examinations_page import ExaminationsPage
         from gui.pages.results_page import ResultsPage
         from gui.pages.reports_page import ReportsPage
+        from gui.pages.audit_logs_page import AuditLogsPage
 
         self.pages = {
             "Dashboard": DashboardPage(state),
@@ -58,6 +61,7 @@ class MainWindow(QMainWindow):
             "Examinations": ExaminationsPage(state),
             "Results": ResultsPage(state),
             "Reports": ReportsPage(state),
+            "Audit Logs": AuditLogsPage(state),
         }
         for page in self.pages.values():
             self.stack.addWidget(page)

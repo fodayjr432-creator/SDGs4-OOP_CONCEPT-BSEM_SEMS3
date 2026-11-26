@@ -1,3 +1,4 @@
+from gui.theme.theme_manager import ThemeManager
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
@@ -12,47 +13,52 @@ from api_client import ApiClient, ApiError
 from gui.api_worker import ApiWorker
 
 
-REGISTRATION_QSS = """
-QDialog {
-    background: #F5F7FB;
-    color: #172033;
+def _registration_qss(p):
+    """Generate the registration window stylesheet from the given theme palette."""
+    return f"""
+QDialog {{
+    background: {p['bg']};
+    color: {p['text']};
     font-family: "Segoe UI";
-}
-QLabel#registrationTitle {
-    color: #172033;
+}}
+QLabel#registrationTitle {{
+    color: {p['text']};
     font-size: 25px;
     font-weight: 700;
-}
-QLabel#registrationDescription, QLabel#registrationStatus {
-    color: #64748B;
+}}
+QLabel#registrationDescription, QLabel#registrationStatus {{
+    color: {p['muted']};
     font-size: 13px;
-}
-QLabel#registrationStatus[feedback="error"] { color: #DC2626; }
-QLabel#registrationStatus[feedback="success"] { color: #16A34A; }
-QLineEdit {
-    background: #FFFFFF;
-    border: 1px solid #CBD5E1;
+}}
+QLabel#registrationStatus[feedback="error"] {{ color: {p['error']}; }}
+QLabel#registrationStatus[feedback="success"] {{ color: {p['success']}; }}
+QLineEdit {{
+    background: {p['surface']};
+    border: 1px solid {p['border']};
     border-radius: 7px;
-    color: #172033;
+    color: {p['text']};
     min-height: 36px;
     padding: 0 9px;
-}
-QPushButton#registerSubmit {
-    background: #2563EB;
+}}
+QLineEdit:focus {{ border: 2px solid {p['accent']}; }}
+QPushButton#registerSubmit {{
+    background: {p['accent']};
     border: none;
     border-radius: 7px;
     color: #FFFFFF;
     font-weight: 600;
     min-height: 42px;
-}
-QPushButton#registerSubmit:disabled { background: #94A3B8; }
-QPushButton#registerCancel {
-    background: transparent;
-    border: 1px solid #CBD5E1;
+}}
+QPushButton#registerSubmit:hover {{ background: {p['accent_hover']}; }}
+QPushButton#registerSubmit:disabled {{ background: {p['muted']}; }}
+QPushButton#registerCancel {{
+    background: {p['surface']};
+    border: 1px solid {p['border']};
     border-radius: 7px;
-    color: #334155;
+    color: {p['text']};
     min-height: 40px;
-}
+}}
+QPushButton#registerCancel:hover {{ background: {p['accent_hover']}; color: #FFFFFF; }}
 """
 
 
@@ -67,7 +73,11 @@ class RegistrationWindow(QDialog):
         self._registered = False
         self.setWindowTitle("First-time institution setup")
         self.setMinimumWidth(480)
-        self.setStyleSheet(REGISTRATION_QSS)
+        self._refresh_styles()
+        ThemeManager.instance().style_changed.connect(self._refresh_styles)
+
+    def _refresh_styles(self):
+        self.setStyleSheet(_registration_qss(ThemeManager.instance().palette()))
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 26, 30, 24)

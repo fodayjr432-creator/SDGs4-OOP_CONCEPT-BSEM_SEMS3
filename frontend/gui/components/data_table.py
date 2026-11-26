@@ -6,7 +6,7 @@ class DataTable(QTableWidget):
         super().__init__(parent)
         self.setColumnCount(len(columns))
         self.setHorizontalHeaderLabels(columns)
-        self.setAlternatingRowColors(True)
+        self.setAlternatingRowColors(False)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)

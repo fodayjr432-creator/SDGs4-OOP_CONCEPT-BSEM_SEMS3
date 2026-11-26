@@ -12,153 +12,31 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from gui.app_state import AppState
 from gui.api_worker import ApiWorker
+from gui.app_state import AppState
+from gui.styles.theme import PALETTES
 from gui.windows.registration_window import RegistrationWindow
 from api_client import ApiClient, ApiError
 
 
-LOGIN_QSS = """
-QWidget#loginWindow {
-    background: #F5F7FB;
-    color: #172033;
-    font-family: "Segoe UI";
-}
-QWidget#loginBrand { background: #F5F7FB; }
-QWidget#loginSurface {
-    background: #FFFFFF;
-    border-left: 1px solid #E2E8F0;
-}
-QLabel#brandName {
-    color: #172033;
-    font-size: 15px;
-    font-weight: 700;
-}
-QLabel#brandCaption {
-    color: #64748B;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1px;
-}
-QLabel#loginHeadline {
-    color: #172033;
-    font-size: 34px;
-    font-weight: 700;
-}
-QLabel#supportingCopy {
-    color: #64748B;
-    font-size: 15px;
-}
-QLabel#brandFooter, QLabel#versionFooter {
-    color: #64748B;
-    font-size: 12px;
-}
-QFrame#loginCard {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 16px;
-}
-QLabel#formHeading {
-    color: #172033;
-    font-size: 26px;
-    font-weight: 700;
-}
-QLabel#formSubheading {
-    color: #64748B;
-    font-size: 14px;
-}
-QLabel#fieldLabel {
-    color: #334155;
-    font-size: 13px;
-    font-weight: 600;
-}
-QLineEdit#usernameInput {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 9px;
-    color: #172033;
-    padding: 0 13px;
-    min-height: 46px;
-    selection-background-color: #DBEAFE;
-}
-QLineEdit#usernameInput:focus {
-    border: 2px solid #2563EB;
-}
-QLineEdit#usernameInput[invalid="true"] {
-    border: 1px solid #DC2626;
-}
-QLineEdit#usernameInput::placeholder {
-    color: #94A3B8;
-}
-QFrame#passwordWrapper {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 9px;
-}
-QFrame#passwordWrapper[focused="true"] {
-    border: 2px solid #2563EB;
-}
-QFrame#passwordWrapper[invalid="true"] {
-    border: 1px solid #DC2626;
-}
-QLineEdit#passwordInput {
-    background: transparent;
-    border: none;
-    color: #172033;
-    padding: 0;
-    min-height: 44px;
-    selection-background-color: #DBEAFE;
-}
-QLineEdit#passwordInput::placeholder {
-    color: #94A3B8;
-}
-QPushButton#passwordToggle {
-    background: transparent;
-    border: none;
-    color: #2563EB;
-    padding: 4px 8px;
-    font-size: 12px;
-    font-weight: 600;
-}
-QPushButton#passwordToggle:hover {
-    color: #1D4ED8;
-}
-QPushButton#passwordToggle:focus {
-    outline: none;
-    color: #1E40AF;
-}
-QPushButton#loginSubmit {
-    background: #2563EB;
-    border: none;
-    border-radius: 9px;
-    color: #FFFFFF;
-    font-size: 15px;
-    font-weight: 600;
-    min-height: 48px;
-}
-QPushButton#loginSubmit:hover { background: #1D4ED8; }
-QPushButton#loginSubmit:pressed { background: #1E40AF; }
-QPushButton#loginSubmit:disabled {
-    background: #94A3B8;
-    color: #FFFFFF;
-}
-QPushButton#registrationLink {
-    background: transparent;
-    border: none;
-    color: #2563EB;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 8px;
-}
-QPushButton#registrationLink:hover { color: #1D4ED8; }
-QLabel#loginStatus {
-    color: #64748B;
-    font-size: 13px;
-}
-QLabel#loginStatus[feedback="error"] { color: #DC2626; }
-QLabel#loginStatus[feedback="success"] { color: #16A34A; }
-QLabel#versionFooter { color: #94A3B8; }
-"""
+_LIGHT = PALETTES["Light"]
+BG_LEFT = _LIGHT["brand_panel_bg"]
+BG_RIGHT = _LIGHT["card"]
+CARD_SURFACE = _LIGHT["card"]
+BORDER = _LIGHT["border"]
+DIVIDER = _LIGHT["border"]
+INPUT_BORDER = _LIGHT["border"]
+PRIMARY = _LIGHT["primary"]
+PRIMARY_HOVER = _LIGHT["primary_hover"]
+PRIMARY_PRESSED = _LIGHT["primary_pressed"]
+TEXT_DARK = _LIGHT["text"]
+TEXT_DARK2 = _LIGHT["text"]
+MUTED = _LIGHT["muted"]
+MUTED2 = _LIGHT["muted"]
+LABEL_COLOR = _LIGHT["text"]
+ILLUSTRATION_BG = _LIGHT["tint_bg"]
+GREEN = _LIGHT["success"]
+ERROR = _LIGHT["danger"]
 
 
 class BrandMark(QWidget):
@@ -171,7 +49,7 @@ class BrandMark(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#2563EB"))
+        painter.setBrush(QColor(PRIMARY))
         painter.drawRoundedRect(QRectF(0, 0, 46, 46), 13, 13)
 
         pen = QPen(QColor("#FFFFFF"), 2.2)
@@ -182,16 +60,16 @@ class BrandMark(QWidget):
         book = QPainterPath()
         book.moveTo(12, 14)
         book.lineTo(21, 17)
-        book.lineTo(21, 32)
-        book.lineTo(12, 29)
+        book.lineTo(21, 30)
+        book.lineTo(12, 27)
         book.closeSubpath()
-        book.moveTo(34, 14)
-        book.lineTo(25, 17)
-        book.lineTo(25, 32)
-        book.lineTo(34, 29)
+        book.moveTo(32, 14)
+        book.lineTo(23, 17)
+        book.lineTo(23, 30)
+        book.lineTo(32, 27)
         book.closeSubpath()
-        book.moveTo(23, 17)
-        book.lineTo(23, 33)
+        book.moveTo(22, 17)
+        book.lineTo(22, 31)
         painter.drawPath(book)
         event.accept()
 
@@ -215,7 +93,7 @@ class AcademicIllustration(QWidget):
         painter.scale(scale, scale)
 
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#EAF1FD"))
+        painter.setBrush(QColor(ILLUSTRATION_BG))
         painter.drawRoundedRect(QRectF(0, 0, 480, 270), 22, 22)
         painter.setBrush(QColor("#DCE9FC"))
         painter.drawEllipse(QRectF(24, 25, 10, 10))
@@ -226,12 +104,12 @@ class AcademicIllustration(QWidget):
         # Report card with a soft offset shadow.
         painter.setBrush(QColor("#D4E1F5"))
         painter.drawRoundedRect(QRectF(153, 32, 180, 214), 13, 13)
-        painter.setBrush(QColor("#FFFFFF"))
+        painter.setBrush(QColor(CARD_SURFACE))
         painter.drawRoundedRect(QRectF(146, 25, 180, 214), 13, 13)
 
         painter.setBrush(QColor("#EFF5FF"))
         painter.drawRoundedRect(QRectF(163, 42, 34, 34), 10, 10)
-        painter.setPen(QPen(QColor("#2563EB"), 2))
+        painter.setPen(QPen(QColor(PRIMARY), 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawLine(QPointF(170, 61), QPointF(177, 54))
         painter.drawLine(QPointF(177, 54), QPointF(182, 59))
@@ -253,57 +131,55 @@ class AcademicIllustration(QWidget):
         for y in (104, 135, 166):
             painter.drawRoundedRect(QRectF(224, y, 83, 5), 2, 2)
 
-        painter.setBrush(QColor("#DBEAFE"))
-        painter.drawRoundedRect(QRectF(164, 187, 143, 37), 8, 8)
-        painter.setBrush(QColor("#2563EB"))
-        painter.drawRoundedRect(QRectF(176, 202, 12, 12), 3, 3)
-        painter.setBrush(QColor("#60A5FA"))
-        painter.drawRoundedRect(QRectF(195, 196, 12, 18), 3, 3)
-        painter.setBrush(QColor("#93C5FD"))
-        painter.drawRoundedRect(QRectF(214, 190, 12, 24), 3, 3)
-        painter.setBrush(QColor("#BFDBFE"))
-        painter.drawRoundedRect(QRectF(233, 199, 12, 15), 3, 3)
-
-        # Graduation cap accent.
-        cap = QPolygonF([
-            QPointF(39, 133), QPointF(88, 112),
-            QPointF(137, 133), QPointF(88, 153),
-        ])
-        painter.setBrush(QColor("#2563EB"))
-        painter.drawPolygon(cap)
-        painter.setBrush(QColor("#1D4ED8"))
-        painter.drawRoundedRect(QRectF(55, 134, 66, 23), 0, 0)
-        painter.drawRect(QRectF(62, 149, 52, 5))
-        painter.setPen(QPen(QColor("#2563EB"), 2))
-        painter.drawLine(QPointF(128, 132), QPointF(128, 158))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#60A5FA"))
-        painter.drawEllipse(QRectF(124, 156, 8, 8))
-
         # Floating performance summary.
         painter.setBrush(QColor("#D4E1F5"))
         painter.drawRoundedRect(QRectF(326, 115, 124, 97), 12, 12)
-        painter.setBrush(QColor("#FFFFFF"))
+        painter.setBrush(QColor(CARD_SURFACE))
         painter.drawRoundedRect(QRectF(321, 110, 124, 97), 12, 12)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor("#64748B"))
         painter.drawRoundedRect(QRectF(335, 124, 53, 5), 2, 2)
         painter.setBrush(QColor("#F0FDF4"))
         painter.drawEllipse(QRectF(399, 121, 30, 30))
-        painter.setPen(QPen(QColor("#16A34A"), 2.5))
+        painter.setPen(QPen(QColor(GREEN), 2.5))
         painter.drawLine(QPointF(407, 136), QPointF(412, 141))
         painter.drawLine(QPointF(412, 141), QPointF(422, 130))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor("#E2E8F0"))
         painter.drawRoundedRect(QRectF(335, 142, 64, 5), 2, 2)
-        painter.setBrush(QColor("#2563EB"))
-        painter.drawRoundedRect(QRectF(335, 169, 16, 23), 4, 4)
+
+        # Graduation cap accent.
+        cap = QPolygonF([
+            QPointF(39, 133), QPointF(88, 112),
+            QPointF(137, 133), QPointF(88, 153),
+        ])
+        painter.setBrush(QColor(PRIMARY))
+        painter.drawPolygon(cap)
+        painter.setBrush(QColor("#1D4ED8"))
+        painter.drawRoundedRect(QRectF(55, 134, 66, 23), 0, 0)
+        painter.drawRect(QRectF(62, 149, 52, 5))
+        painter.setPen(QPen(QColor(PRIMARY), 2))
+        painter.drawLine(QPointF(128, 132), QPointF(128, 158))
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor("#60A5FA"))
-        painter.drawRoundedRect(QRectF(358, 160, 16, 32), 4, 4)
+        painter.drawEllipse(QRectF(124, 156, 8, 8))
+
+        # Smaller result card with green checkmark badge and vertical bars.
+        painter.setBrush(QColor("#D4E1F5"))
+        painter.drawRoundedRect(QRectF(260, 160, 100, 74), 8, 8)
+        painter.setBrush(QColor(CARD_SURFACE))
+        painter.drawRoundedRect(QRectF(255, 155, 100, 74), 8, 8)
+        painter.setBrush(QColor("#F0FDF4"))
+        painter.drawEllipse(QRectF(332, 164, 20, 20))
+        painter.setPen(QPen(QColor(GREEN), 2))
+        painter.drawLine(QPointF(336, 175), QPointF(341, 180))
+        painter.drawLine(QPointF(341, 180), QPointF(346, 170))
+        painter.setBrush(QColor("#60A5FA"))
+        painter.drawRoundedRect(QRectF(272, 176, 10, 22), 3, 3)
         painter.setBrush(QColor("#93C5FD"))
-        painter.drawRoundedRect(QRectF(381, 151, 16, 41), 4, 4)
+        painter.drawRoundedRect(QRectF(286, 170, 10, 28), 3, 3)
         painter.setBrush(QColor("#BFDBFE"))
-        painter.drawRoundedRect(QRectF(404, 164, 16, 28), 4, 4)
+        painter.drawRoundedRect(QRectF(300, 164, 10, 34), 3, 3)
         event.accept()
 
 
@@ -319,25 +195,179 @@ class FocusAwareLineEdit(QLineEdit):
         self.focus_changed.emit(False)
 
 
+_LOGIN_QSS = f"""
+QWidget#loginWindow {{
+    background: {BG_LEFT};
+    color: {TEXT_DARK};
+}}
+QWidget#loginBrand {{
+    background: {BG_LEFT};
+}}
+QWidget#loginSurface {{
+    background: {BG_RIGHT};
+    border-left: 1px solid {BORDER};
+}}
+QLabel#brandName {{
+    color: {TEXT_DARK};
+    font-size: 15px;
+    font-weight: 700;
+}}
+QLabel#brandCaption {{
+    color: {MUTED};
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}}
+QLabel#loginHeadline {{
+    color: {TEXT_DARK2};
+    font-size: 34px;
+    font-weight: 700;
+}}
+QLabel#supportingCopy {{
+    color: {MUTED};
+    font-size: 15px;
+}}
+QLabel#brandFooter {{
+    color: {MUTED};
+    font-size: 12px;
+}}
+QFrame#loginCard {{
+    background: {CARD_SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 16px;
+}}
+QLabel#cardHeading {{
+    color: {TEXT_DARK2};
+    font-size: 26px;
+    font-weight: 700;
+}}
+QLabel#cardSubtitle {{
+    color: {MUTED};
+    font-size: 14px;
+}}
+QLabel#fieldLabel {{
+    color: {LABEL_COLOR};
+    font-size: 13px;
+    font-weight: 600;
+}}
+QLineEdit#usernameInput {{
+    background: {CARD_SURFACE};
+    border: 1px solid {INPUT_BORDER};
+    border-radius: 9px;
+    color: {TEXT_DARK2};
+    padding: 0 13px;
+    min-height: 46px;
+    selection-background-color: {PRIMARY};
+}}
+QLineEdit#usernameInput:focus {{
+    border: 2px solid {PRIMARY};
+}}
+QLineEdit#usernameInput[invalid="true"] {{
+    border: 1px solid {ERROR};
+}}
+QLineEdit#usernameInput::placeholder {{
+    color: {MUTED};
+}}
+QFrame#passwordWrapper {{
+    background: {CARD_SURFACE};
+    border: 1px solid {INPUT_BORDER};
+    border-radius: 9px;
+}}
+QFrame#passwordWrapper[focused="true"] {{
+    border: 2px solid {PRIMARY};
+}}
+QFrame#passwordWrapper[invalid="true"] {{
+    border: 1px solid {ERROR};
+}}
+QLineEdit#passwordInput {{
+    background: transparent;
+    border: none;
+    color: {TEXT_DARK2};
+    padding: 0;
+    min-height: 46px;
+    selection-background-color: {PRIMARY};
+}}
+QLineEdit#passwordInput::placeholder {{
+    color: {MUTED};
+}}
+QPushButton#passwordToggle {{
+    background: transparent;
+    border: none;
+    color: {PRIMARY};
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}}
+QPushButton#passwordToggle:hover {{
+    color: {PRIMARY_HOVER};
+}}
+QPushButton#passwordToggle:focus {{
+    outline: none;
+    color: {PRIMARY_HOVER};
+}}
+QPushButton#loginSubmit {{
+    background: {PRIMARY};
+    border: none;
+    border-radius: 9px;
+    color: #FFFFFF;
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 48px;
+}}
+QPushButton#loginSubmit:hover {{ background: {PRIMARY_HOVER}; }}
+QPushButton#loginSubmit:pressed {{ background: {PRIMARY_PRESSED}; }}
+QPushButton#loginSubmit:disabled {{
+    background: #94A3B8;
+    color: #FFFFFF;
+}}
+QPushButton#registrationLink {{
+    background: transparent;
+    border: none;
+    color: {PRIMARY};
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px;
+}}
+QPushButton#registrationLink:hover {{ color: {PRIMARY_HOVER}; }}
+QLabel#loginStatus {{
+    color: {MUTED};
+    font-size: 13px;
+}}
+QLabel#loginStatus[feedback="error"] {{ color: {ERROR}; }}
+QLabel#loginStatus[feedback="success"] {{ color: {GREEN}; }}
+QLabel#versionFooter {{
+    color: {MUTED};
+    font-size: 12px;
+}}
+"""
+
+
 class LoginWindow(QWidget):
+    login_successful = pyqtSignal(object)
+    setup_requested = pyqtSignal(object)
+
     def __init__(self):
         super().__init__()
         self.setObjectName("loginWindow")
         self.setWindowTitle("SDG 4 Quality Education")
         self.resize(1180, 760)
         self.setMinimumSize(900, 640)
-        self.setStyleSheet(LOGIN_QSS)
         self._processing = False
         self.main_window = None
         self.api = ApiClient()
         self.account = None
         self._worker = None
         self._authentication_available = False
+        self._refresh_styles()
+
+    def _refresh_styles(self):
+        self.setStyleSheet(_LOGIN_QSS)
 
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
+        # ------------------------------------------------------------------ left panel (brand)
         brand = QWidget()
         brand.setObjectName("loginBrand")
         brand_layout = QVBoxLayout(brand)
@@ -349,9 +379,8 @@ class LoginWindow(QWidget):
         brand_row.addWidget(BrandMark())
         brand_text = QVBoxLayout()
         brand_text.setSpacing(3)
-        brand_name = QLabel("SDG 4\nQuality Education")
+        brand_name = QLabel("Digital Examination Results\nManagement System")
         brand_name.setObjectName("brandName")
-        brand_name.setWordWrap(True)
         brand_text.addWidget(brand_name)
         brand_caption = QLabel("ACADEMIC OPERATIONS")
         brand_caption.setObjectName("brandCaption")
@@ -384,6 +413,7 @@ class LoginWindow(QWidget):
         brand_footer.setWordWrap(True)
         brand_layout.addWidget(brand_footer)
 
+        # ------------------------------------------------------------------ right panel (sign-in)
         surface = QWidget()
         surface.setObjectName("loginSurface")
         surface_layout = QVBoxLayout(surface)
@@ -406,11 +436,11 @@ class LoginWindow(QWidget):
         card_layout.setSpacing(0)
 
         welcome = QLabel("Welcome Back")
-        welcome.setObjectName("formHeading")
+        welcome.setObjectName("cardHeading")
         card_layout.addWidget(welcome)
         card_layout.addSpacing(7)
         instruction = QLabel("Sign in to access your examination workspace.")
-        instruction.setObjectName("formSubheading")
+        instruction.setObjectName("cardSubtitle")
         instruction.setWordWrap(True)
         card_layout.addWidget(instruction)
         card_layout.addSpacing(25)
@@ -489,14 +519,15 @@ class LoginWindow(QWidget):
 
         surface_layout.addWidget(card, 0, Qt.AlignmentFlag.AlignHCenter)
         surface_layout.addStretch(1)
-        version_footer = QLabel("SDG 4 Quality Education  ·  v1.0")
+        version_footer = QLabel("Digital Examination Results Management System  ·  v1.0")
         version_footer.setObjectName("versionFooter")
         version_footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
         version_footer.setWordWrap(True)
         surface_layout.addWidget(version_footer)
 
-        root.addWidget(brand, 56)
-        root.addWidget(surface, 44)
+        root.addWidget(brand, 1)
+        root.addWidget(surface, 1)
+
         self.login_button.setEnabled(False)
         self._set_status("Checking backend availability…")
         self._start_worker(
@@ -504,6 +535,8 @@ class LoginWindow(QWidget):
             self._backend_status_received,
             self._backend_status_failed,
         )
+
+    # ------------------------------------------------------------------ backend / auth flow
 
     def _start_worker(self, operation, succeeded, failed):
         worker = ApiWorker(operation, self)
@@ -560,6 +593,7 @@ class LoginWindow(QWidget):
         dialog.registration_succeeded.connect(self._registration_completed)
         if dialog.exec():
             self.username.setFocus()
+        self.setup_requested.emit(self.api)
 
     def _registration_completed(self):
         self.registration_button.setVisible(False)
@@ -653,7 +687,12 @@ class LoginWindow(QWidget):
         self.account, state = result
         self._set_status("Sign-in successful. Opening your workspace…", "success")
         self.password.clear()
-        self._open_dashboard(state)
+        from gui.windows.main_window import MainWindow
+
+        self.main_window = MainWindow(state)
+        self.main_window.show()
+        self.close()
+        self.login_successful.emit(state)
 
     def _login_failed(self, message):
         self._set_status(str(message), "error")
@@ -667,21 +706,3 @@ class LoginWindow(QWidget):
         self._set_invalid(self.password_wrapper, True)
         self.password.selectAll()
         self.password.setFocus()
-
-    def _open_dashboard(self, state):
-        from gui.windows.main_window import MainWindow
-
-        try:
-            self.main_window = MainWindow(state)
-            self.main_window.show()
-            self.close()
-        except (ApiError, KeyError, TypeError, ValueError) as error:
-            self.api.token = None
-            self.account = None
-            self._processing = False
-            self.login_button.setEnabled(True)
-            self.login_button.setText("Sign In")
-            self.username.setEnabled(True)
-            self.password.setEnabled(True)
-            self.password_toggle.setEnabled(True)
-            self._set_status(str(error), "error")

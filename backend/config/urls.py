@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 
 from apps.accounts import views as account_views
 from . import views
@@ -76,4 +76,5 @@ urlpatterns = [
     ),
     path("api/reports/", views.reports, name="reports"),
     path("api/dashboard/", views.dashboard, name="dashboard"),
+    path("api/", include("apps.audit.urls")),
 ]
