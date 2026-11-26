@@ -169,10 +169,11 @@ class Sidebar(QWidget):
             layout.addWidget(button)
             self.buttons[label] = button
 
-        layout.addStretch()
         self.logout_button = NavButton("Logout", "logout")
         self.logout_button.clicked.connect(self.logout_requested.emit)
         layout.addWidget(self.logout_button)
+
+        layout.addStretch()
         self._refresh_styles()
         self.select("Dashboard")
 
